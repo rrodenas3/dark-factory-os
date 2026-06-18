@@ -216,6 +216,9 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "dark-factory-api" },
+    { name = "dark-factory-artifacts" },
+    { name = "dark-factory-evals" },
+    { name = "dark-factory-skills-registry" },
 ]
 
 [package.dev-dependencies]
@@ -229,7 +232,12 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "dark-factory-api", editable = "apps/api" }]
+requires-dist = [
+    { name = "dark-factory-api", editable = "apps/api" },
+    { name = "dark-factory-artifacts", editable = "packages/py/artifacts" },
+    { name = "dark-factory-evals", editable = "packages/py/evals" },
+    { name = "dark-factory-skills-registry", editable = "packages/py/skills_registry" },
+]
 
 [package.metadata.requires-dev]
 dev = [

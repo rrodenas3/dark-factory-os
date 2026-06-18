@@ -31,6 +31,9 @@ jobs:
       - run: uv run ruff check .
       - run: uv run mypy apps packages
       - run: uv run pytest
+      - run: uv run dfos-validate-artifacts
+      - run: uv run dfos-validate-evals
+      - run: uv run dfos-validate-skills
 
   typescript:
     runs-on: ubuntu-latest

@@ -3,7 +3,12 @@ name = "dark-factory-os"
 version = "0.1.0"
 description = "Governed agentic operations platform for enterprise workflows"
 requires-python = ">=3.12"
-dependencies = ["dark-factory-api"]
+dependencies = [
+  "dark-factory-api",
+  "dark-factory-artifacts",
+  "dark-factory-evals",
+  "dark-factory-skills-registry"
+]
 
 [dependency-groups]
 dev = [
@@ -17,9 +22,13 @@ dev = [
 
 [tool.uv.sources]
 dark-factory-api = { workspace = true }
+dark-factory-artifacts = { workspace = true }
+dark-factory-evals = { workspace = true }
+dark-factory-skills-registry = { workspace = true }
 
 [tool.uv.workspace]
 members = ["apps/api", "apps/worker", "packages/py/*"]
+
 
 [tool.ruff]
 line-length = 120
