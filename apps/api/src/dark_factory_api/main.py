@@ -224,24 +224,32 @@ def resume_run(run_id: UUID, payload: ApprovalDecisionRequest) -> dict[str, str]
     if run_id not in RUNS:
         raise HTTPException(status_code=404, detail="Run not found")
     run = RUNS[run_id]
-    status: Literal["completed", "cancelled"] = "completed" if payload.decision == "approved" else "cancelled"
+    state = RUN_STATES.get(run_id)
+    if state is None:
+        raise HTTPException(status_code=404, detail="Run state not found")
+
+    resumed = RUN_GRAPH.resume(state, payload.decision)
+    outcome = {
+        **(resumed.get("outcome") or run.outcome or {}),
+        "approval_decision": payload.decision,
+        "decision_reason": payload.reason,
+    }
     RUNS[run_id] = run.model_copy(
         update={
-            "status": status,
-            "pending_approval": False,
-            "outcome": {
-                **(run.outcome or {}),
-                "approval_decision": payload.decision,
-                "decision_reason": payload.reason,
-            },
+            "status": _api_status(resumed.get("status", "failed")),
+            "total_cost_usd": resumed.get("cost_usd", run.total_cost_usd),
+            "step_count": resumed.get("step_count", run.step_count),
+            "pending_approval": resumed.get("pending_approval", False),
+            "approval_role": resumed.get("approval_role"),
+            "policy_citations": resumed.get("policy_citations", run.policy_citations),
+            "tool_trace": resumed.get("tool_trace", run.tool_trace),
+            "outcome": outcome,
+            "error": resumed.get("error"),
         }
     )
-    state = RUN_STATES.get(run_id, RunState()).copy()
-    state["status"] = status
-    state["pending_approval"] = False
-    state["outcome"] = RUNS[run_id].outcome
-    RUN_STATES[run_id] = state
-    return {"status": "accepted", "run_status": status}
+    resumed["outcome"] = outcome
+    RUN_STATES[run_id] = resumed
+    return {"status": "accepted", "run_status": RUNS[run_id].status}
 
 
 @app.get("/api/runs/{run_id}/trace")

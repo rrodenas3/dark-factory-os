@@ -6,6 +6,7 @@ from dark_factory_governance.risk_registry import RiskRegistry, load_risk_regist
 
 from .nodes import (
     approval_gate_node,
+    execute_pending_gated_tool,
     memory_writer_node,
     planner_node,
     specialist_node,
@@ -55,6 +56,52 @@ class RunGraph:
                 state = planner_node(initial_state)
             plan = state.get("plan", [])
 
+            for _ in range(len(plan) + 1):
+                status = state.get("status", "running")
+                if status in ("completed", "failed", "approval_required"):
+                    break
+                with node_span("specialist"):
+                    state = specialist_node(state, self.registry)
+
+            with node_span("verifier"):
+                state = verifier_node(state)
+
+            if state.get("status") == "approval_required":
+                with node_span("approval_gate"):
+                    state = approval_gate_node(state)
+            elif state.get("status") == "completed":
+                with node_span("memory_writer"):
+                    state = memory_writer_node(state)
+
+            attach_tool_events(root, state.get("tool_trace", []))
+            record_outcome(root, state)
+
+        return state
+
+    def resume(self, state: RunState, decision: str) -> RunState:
+        """Continue a run paused at approval_required after a human decision."""
+        if state.get("status") != "approval_required":
+            return state
+        if decision == "rejected":
+            return {
+                **state,
+                "status": "cancelled",
+                "pending_approval": False,
+                "pending_tool": None,
+                "outcome": {
+                    "resolved": False,
+                    "approval_required": True,
+                    "policy_cited": bool(state.get("policy_citations")),
+                    "rejected": True,
+                },
+            }
+
+        with run_span(state) as root:
+            if state.get("pending_tool"):
+                with node_span("specialist"):
+                    state = execute_pending_gated_tool(state, self.registry)
+
+            plan = state.get("plan", [])
             for _ in range(len(plan) + 1):
                 status = state.get("status", "running")
                 if status in ("completed", "failed", "approval_required"):

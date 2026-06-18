@@ -20,7 +20,8 @@ class RunState(TypedDict, total=False):
     status: str  # "running" | "paused" | "approval_required" | "completed" | "failed"
     pending_approval: bool
     approval_role: str | None
-    tool_trace: list[dict[str, Any]]  # [{tool_name, success, latency_ms, cost_usd}]
+    pending_tool: str | None  # gated tool awaiting human approval before dispatch
+    tool_trace: list[dict[str, Any]]  # [{tool_name, success, latency_ms, cost_usd, executed?}]
     memory_context: list[dict[str, Any]]
     policy_citations: list[str]
     outcome: dict[str, Any] | None

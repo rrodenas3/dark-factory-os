@@ -6,6 +6,7 @@ with correct gen_ai.* attribute names and tool call events.
 The TracerProvider is set once for the entire module (OTEL only allows one
 set_tracer_provider call per process) and cleared between tests via exporter.clear().
 """
+
 from __future__ import annotations
 
 import pytest

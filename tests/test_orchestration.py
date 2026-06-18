@@ -26,6 +26,7 @@ def _initial(run_id: str, vertical: str, skill_name: str) -> RunState:
         status="running",
         pending_approval=False,
         approval_role=None,
+        pending_tool=None,
         tool_trace=[],
         memory_context=[],
         policy_citations=[],
@@ -78,3 +79,29 @@ def test_tool_trace_records_risk_tier(graph: RunGraph) -> None:
 def test_spend_anomaly_skill_completes(graph: RunGraph) -> None:
     final = graph.invoke(_initial("run-fin-006", "finance", "spend-anomaly-detection"))
     assert final["status"] in ("completed", "approval_required", "failed")
+
+
+def test_gated_tool_not_executed_before_approval(graph: RunGraph) -> None:
+    final = graph.invoke(_initial("run-ret-gated", "retail", "promo-rebalance"))
+    assert final["status"] == "approval_required"
+    gated = [t for t in final["tool_trace"] if t["tool_name"] == "pricing.set_price_band"]
+    assert len(gated) == 1
+    assert gated[0]["executed"] is False
+
+
+def test_resume_executes_gated_tool_once(graph: RunGraph) -> None:
+    paused = graph.invoke(_initial("run-ret-resume", "retail", "promo-rebalance"))
+    assert paused["status"] == "approval_required"
+    assert paused.get("pending_tool") == "pricing.set_price_band"
+
+    final = graph.resume(paused, "approved")
+    executed = [t for t in final["tool_trace"] if t["tool_name"] == "pricing.set_price_band" and t.get("executed")]
+    assert len(executed) == 1
+    assert executed[0]["success"] is True
+
+
+def test_resume_rejected_cancels_run(graph: RunGraph) -> None:
+    paused = graph.invoke(_initial("run-ret-reject", "retail", "promo-rebalance"))
+    final = graph.resume(paused, "rejected")
+    assert final["status"] == "cancelled"
+    assert final.get("pending_tool") is None

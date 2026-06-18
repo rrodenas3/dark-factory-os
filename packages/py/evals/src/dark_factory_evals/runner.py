@@ -55,6 +55,7 @@ class EvalRunner:
             "status": "running",
             "pending_approval": False,
             "approval_role": None,
+            "pending_tool": None,
             "tool_trace": [],
             "memory_context": [],
             "policy_citations": [],

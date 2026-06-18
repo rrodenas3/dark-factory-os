@@ -54,6 +54,7 @@ def test_create_run_can_pause_for_approval_and_expose_trace() -> None:
     assert trace["status"] == "approval_required"
     assert trace["tool_trace"][-1]["tool_name"] == "pricing.set_price_band"
     assert trace["tool_trace"][-1]["requires_approval"] is True
+    assert trace["tool_trace"][-1]["executed"] is False
 
 
 def test_resume_run_records_approval_decision() -> None:
@@ -77,6 +78,12 @@ def test_resume_run_records_approval_decision() -> None:
     detail = client.get(f"/api/runs/{created['id']}").json()
     assert detail["pending_approval"] is False
     assert detail["outcome"]["approval_decision"] == "approved"
+    executed = [
+        step
+        for step in detail["tool_trace"]
+        if step["tool_name"] == "pricing.set_price_band" and step.get("executed") is True
+    ]
+    assert len(executed) == 1
 
 
 def test_memory_search_returns_live_results() -> None:

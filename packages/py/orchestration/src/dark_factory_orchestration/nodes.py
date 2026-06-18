@@ -46,6 +46,7 @@ def planner_node(state: RunState) -> RunState:
         "policy_citations": [],
         "pending_approval": False,
         "approval_role": None,
+        "pending_tool": None,
         "outcome": None,
         "error": None,
     }
@@ -80,26 +81,26 @@ def specialist_node(state: RunState, risk_registry: RiskRegistry) -> RunState:
         return {**state, "status": "failed", "error": msg}
 
     if policy.risk_tier in ("financial", "destructive"):
-        result = dispatch(ToolCall(name=tool_name, args={}))
         tool_trace.append(
             {
                 "tool_name": tool_name,
                 "risk_tier": policy.risk_tier,
-                "success": result.success,
-                "latency_ms": result.latency_ms,
-                "cost_usd": result.cost_usd,
+                "success": True,
+                "latency_ms": 0,
+                "cost_usd": 0.0,
                 "requires_approval": True,
+                "executed": False,
+                "proposal": {"action_preview": True, "awaiting_approval": True},
             }
         )
         return {
             **state,
-            "current_step": step + 1,
             "step_count": step_count + 1,
-            "cost_usd": cost + result.cost_usd,
             "tool_trace": tool_trace,
             "policy_citations": policy_citations,
             "status": "approval_required",
             "pending_approval": True,
+            "pending_tool": tool_name,
             "approval_role": policy.approver_role,
         }
 
@@ -111,6 +112,7 @@ def specialist_node(state: RunState, risk_registry: RiskRegistry) -> RunState:
         "latency_ms": result.latency_ms,
         "cost_usd": result.cost_usd,
         "requires_approval": False,
+        "executed": True,
     }
 
     if result.success and tool_name == "policy.search" and isinstance(result.output, dict):
@@ -179,6 +181,43 @@ def approval_gate_node(state: RunState) -> RunState:
             "approval_role": state.get("approval_role"),
             "tool_trace": state.get("tool_trace", []),
         },
+    }
+
+
+def execute_pending_gated_tool(state: RunState, risk_registry: RiskRegistry) -> RunState:
+    """Dispatch a financial/destructive tool after human approval."""
+    tool_name = state.get("pending_tool")
+    if not tool_name:
+        return state
+
+    policy = risk_registry.require_tool(tool_name)
+    step = state.get("current_step", 0)
+    tool_trace: list[dict[str, Any]] = list(state.get("tool_trace", []))
+    cost = state.get("cost_usd", 0.0)
+    step_count = state.get("step_count", 0)
+
+    result = dispatch(ToolCall(name=tool_name, args=_build_args(tool_name, state)))
+    tool_trace.append(
+        {
+            "tool_name": tool_name,
+            "risk_tier": policy.risk_tier,
+            "success": result.success,
+            "latency_ms": result.latency_ms,
+            "cost_usd": result.cost_usd,
+            "requires_approval": True,
+            "executed": True,
+        }
+    )
+    return {
+        **state,
+        "current_step": step + 1,
+        "step_count": step_count + 1,
+        "cost_usd": cost + result.cost_usd,
+        "tool_trace": tool_trace,
+        "pending_tool": None,
+        "pending_approval": False,
+        "approval_role": None,
+        "status": "running",
     }
 
 
