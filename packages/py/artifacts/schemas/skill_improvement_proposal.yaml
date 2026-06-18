@@ -1,0 +1,24 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: SkillImprovementProposal
+type: object
+required: [id, skill_name, trigger, proposed_change, evidence, eval_plan, status]
+properties:
+  id:
+    type: string
+  skill_name:
+    type: string
+  trigger:
+    type: string
+  proposed_change:
+    type: string
+  evidence:
+    type: array
+    items:
+      type: string
+  eval_plan:
+    type: array
+    items:
+      type: string
+  status:
+    type: string
+    enum: [draft, evaluating, ready_for_review, rejected, accepted]

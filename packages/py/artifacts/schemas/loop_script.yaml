@@ -1,0 +1,70 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: LoopScript
+type: object
+required:
+  - id
+  - name
+  - skill_name
+  - vertical
+  - rigor_level
+  - steps
+  - stop_conditions
+properties:
+  id:
+    type: string
+  name:
+    type: string
+  skill_name:
+    type: string
+  vertical:
+    type: string
+    enum: [retail, finance, saas]
+  rigor_level:
+    type: string
+    enum: [exploratory, standard, strict]
+  steps:
+    type: array
+    items:
+      type: object
+      required: [id, name, node_type, expected_outputs, risk_tier, retry_limit]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        node_type:
+          type: string
+        inputs:
+          type: object
+        expected_outputs:
+          type: object
+        risk_tier:
+          type: string
+        retry_limit:
+          type: integer
+  stop_conditions:
+    type: object
+    properties:
+      max_steps:
+        type: integer
+      max_cost_usd:
+        type: number
+      max_duration_seconds:
+        type: integer
+  approval_triggers:
+    type: array
+    items:
+      type: string
+  memory_profile:
+    type: object
+    properties:
+      reads:
+        type: array
+        items:
+          type: string
+      writes:
+        type: array
+        items:
+          type: string
+      decay_after_days:
+        type: integer

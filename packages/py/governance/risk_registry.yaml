@@ -1,0 +1,65 @@
+version: "1.0"
+tools:
+  erp.get_invoice:
+    risk_tier: read_only
+    description: Fetch invoice by ID from ERP system.
+  erp.get_purchase_order:
+    risk_tier: read_only
+    description: Fetch purchase order by ID from ERP system.
+  analytics.get_campaign_metrics:
+    risk_tier: read_only
+    description: Fetch campaign performance metrics.
+  analytics.get_incident_metrics:
+    risk_tier: read_only
+    description: Fetch support and incident metrics.
+  telemetry.get_deployments:
+    risk_tier: read_only
+    description: Fetch deployment events and service telemetry.
+  policy.search:
+    risk_tier: read_only
+    description: Search internal policies with citations.
+  memory.search:
+    risk_tier: read_only
+    description: Search governed memory.
+  kg.query:
+    risk_tier: read_only
+    description: Query knowledge graph relationships.
+  approvals.request:
+    risk_tier: read_only
+    description: Create an approval request and pause a run.
+
+  erp.post_payment:
+    risk_tier: financial
+    approval_threshold_usd: 1000
+    approver_role: finance-manager
+  erp.create_credit_memo:
+    risk_tier: financial
+    approval_threshold_usd: 500
+    approver_role: finance-manager
+  pricing.set_price_band:
+    risk_tier: financial
+    approval_threshold_usd: 0
+    approver_role: commercial-manager
+  ucp.propose_checkout:
+    risk_tier: financial
+    approval_threshold_usd: 0
+    approver_role: commercial-manager
+
+  erp.void_invoice:
+    risk_tier: destructive
+    approver_role: finance-director
+    require_arp: true
+  inventory.reorder:
+    risk_tier: destructive
+    approver_role: operations-manager
+    require_arp: true
+  incident.change_status:
+    risk_tier: destructive
+    approver_role: support-lead
+    require_arp: true
+
+default_policy:
+  unknown_tool: deny
+  max_read_per_run: 50
+  max_financial_per_run: 5
+  max_destructive_per_run: 1

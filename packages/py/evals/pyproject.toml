@@ -1,0 +1,9 @@
+[project]
+name = "dark-factory-evals"
+version = "0.1.0"
+description = "CLEAR eval harness"
+requires-python = ">=3.12"
+dependencies = ["pydantic>=2.10.4"]
+
+[tool.uv]
+package = true

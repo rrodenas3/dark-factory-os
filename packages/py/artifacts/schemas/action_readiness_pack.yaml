@@ -1,0 +1,92 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: ActionReadinessPack
+type: object
+required:
+  - id
+  - run_id
+  - proposed_action
+  - evidence
+  - risk_assessment
+  - policy_citations
+  - estimated_impact
+  - expires_at
+  - status
+properties:
+  id:
+    type: string
+  run_id:
+    type: string
+  briefing_id:
+    type: string
+  proposed_action:
+    type: object
+    required: [type, description, target_system, payload_preview]
+    properties:
+      type:
+        type: string
+      description:
+        type: string
+      target_system:
+        type: string
+      payload_preview:
+        type: object
+  evidence:
+    type: array
+    items:
+      type: object
+      required: [source, citation, relevance_score, excerpt]
+      properties:
+        source:
+          type: string
+        citation:
+          type: string
+        relevance_score:
+          type: number
+        excerpt:
+          type: string
+  risk_assessment:
+    type: object
+    required: [tier, reversible, blast_radius, confidence]
+    properties:
+      tier:
+        type: string
+        enum: [low, medium, high, critical]
+      reversible:
+        type: boolean
+      blast_radius:
+        type: string
+      confidence:
+        type: number
+  policy_citations:
+    type: array
+    items:
+      type: object
+      required: [policy_id, clause_id, compliance_status]
+      properties:
+        policy_id:
+          type: string
+        clause_id:
+          type: string
+        compliance_status:
+          type: string
+  estimated_impact:
+    type: object
+    properties:
+      financial_usd:
+        type: number
+      systems_affected:
+        type: array
+        items:
+          type: string
+      users_affected:
+        type: integer
+  alternatives_considered:
+    type: array
+    items:
+      type: string
+  expires_at:
+    type: string
+    format: date-time
+  status:
+    type: string
+    enum: [pending, approved, rejected, timeout]

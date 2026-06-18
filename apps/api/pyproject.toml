@@ -1,0 +1,19 @@
+[project]
+name = "dark-factory-api"
+version = "0.1.0"
+description = "Dark Factory OS control-plane API"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115.6",
+  "pydantic>=2.10.4",
+  "uvicorn[standard]>=0.34.0"
+]
+
+[project.optional-dependencies]
+dev = [
+  "httpx>=0.28.1",
+  "pytest>=8.3.4"
+]
+
+[tool.uv]
+package = true

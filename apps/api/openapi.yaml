@@ -1,0 +1,272 @@
+openapi: 3.1.0
+info:
+  title: Dark Factory OS Control Plane API
+  version: 0.1.0
+  description: Governed agentic operations platform API.
+servers:
+  - url: http://localhost:8000
+security:
+  - BearerAuth: []
+paths:
+  /health:
+    get:
+      security: []
+      responses:
+        "200":
+          description: Health status
+  /api/runs:
+    post:
+      summary: Create a governed agent run.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRunRequest"
+      responses:
+        "201":
+          description: Created run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Run"
+    get:
+      summary: List runs.
+      responses:
+        "200":
+          description: Runs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Run"
+  /api/runs/{id}:
+    get:
+      summary: Get run by ID.
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Run"
+  /api/runs/{id}/resume:
+    post:
+      summary: Resume a paused run after an approval decision.
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResumeRunRequest"
+      responses:
+        "202":
+          description: Resume accepted
+  /api/tasks/schedule:
+    post:
+      summary: Schedule a durable task or heartbeat.
+      responses:
+        "202":
+          description: Scheduled
+  /api/tasks:
+    get:
+      summary: List scheduled tasks.
+      responses:
+        "200":
+          description: Tasks
+  /api/approvals:
+    post:
+      summary: Create an approval request.
+      responses:
+        "201":
+          description: Approval created
+    get:
+      summary: List approvals.
+      responses:
+        "200":
+          description: Approvals
+  /api/approvals/{id}/decision:
+    post:
+      summary: Approve or reject an approval request.
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApprovalDecisionRequest"
+      responses:
+        "202":
+          description: Decision accepted
+  /api/skills:
+    get:
+      summary: List registered skills.
+      responses:
+        "200":
+          description: Skills
+  /api/skills/register:
+    post:
+      summary: Register or sync skills from disk.
+      responses:
+        "202":
+          description: Sync started
+  /api/skills/{id}/evaluate:
+    post:
+      summary: Evaluate a skill.
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "202":
+          description: Eval started
+  /api/memory/search:
+    post:
+      summary: Search governed memory.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemorySearchRequest"
+      responses:
+        "200":
+          description: Memory matches
+  /api/kg/query:
+    post:
+      summary: Query knowledge graph relationships.
+      responses:
+        "200":
+          description: Graph results
+  /api/evals/run:
+    post:
+      summary: Run an eval suite.
+      responses:
+        "202":
+          description: Eval started
+  /api/evals/{id}:
+    get:
+      summary: Get eval run.
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Eval result
+  /api/audit/events:
+    get:
+      summary: List audit events.
+      responses:
+        "200":
+          description: Audit events
+  /api/costs/summary:
+    get:
+      summary: Get CLEAR cost breakdown.
+      responses:
+        "200":
+          description: Cost summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CostSummary"
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+    CreateRunRequest:
+      type: object
+      required: [briefing_json, vertical, skill_name]
+      properties:
+        briefing_json:
+          type: object
+        vertical:
+          type: string
+          enum: [retail, finance, saas]
+        skill_name:
+          type: string
+    ResumeRunRequest:
+      type: object
+      required: [approval_decision, decided_by]
+      properties:
+        approval_decision:
+          type: string
+          enum: [approved, rejected]
+        decided_by:
+          type: string
+    ApprovalDecisionRequest:
+      type: object
+      required: [decision, reason]
+      properties:
+        decision:
+          type: string
+          enum: [approved, rejected]
+        reason:
+          type: string
+    MemorySearchRequest:
+      type: object
+      required: [query, namespace, memory_type, k]
+      properties:
+        query:
+          type: string
+        namespace:
+          type: string
+        memory_type:
+          type: string
+          enum: [episodic, semantic, procedural, working]
+        k:
+          type: integer
+        decay_weighted:
+          type: boolean
+          default: true
+    Run:
+      type: object
+      required: [id, workflow_key, status, vertical, total_cost_usd, step_count]
+      properties:
+        id:
+          type: string
+          format: uuid
+        workflow_key:
+          type: string
+        status:
+          type: string
+          enum: [pending, running, paused, approval_required, completed, failed, cancelled]
+        vertical:
+          type: string
+          enum: [retail, finance, saas]
+        total_cost_usd:
+          type: number
+        step_count:
+          type: integer
+    CostSummary:
+      type: object
+      properties:
+        total_usd:
+          type: number
+        by_category:
+          type: object
+        by_vertical:
+          type: object

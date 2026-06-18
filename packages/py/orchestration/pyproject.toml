@@ -1,0 +1,9 @@
+[project]
+name = "dark-factory-orchestration"
+version = "0.1.0"
+description = "LangGraph supervisor and specialist orchestration"
+requires-python = ">=3.12"
+dependencies = ["pydantic>=2.10.4"]
+
+[tool.uv]
+package = true

@@ -1,0 +1,59 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: BriefingScript
+type: object
+required:
+  - id
+  - title
+  - vertical
+  - objective
+  - acceptance_criteria
+  - risk_tolerance
+  - budget_usd
+  - assigned_skill
+  - created_by
+  - created_at
+properties:
+  id:
+    type: string
+    description: UUID for the mission brief.
+  title:
+    type: string
+  vertical:
+    type: string
+    enum: [retail, finance, saas]
+  objective:
+    type: string
+    description: What success looks like.
+  context:
+    type: object
+    properties:
+      business_context:
+        type: string
+      relevant_policies:
+        type: array
+        items:
+          type: string
+      known_constraints:
+        type: array
+        items:
+          type: string
+  acceptance_criteria:
+    type: array
+    items:
+      type: string
+  risk_tolerance:
+    type: string
+    enum: [low, medium, high]
+  budget_usd:
+    type: number
+  assigned_skill:
+    type: string
+  escalation_contacts:
+    type: array
+    items:
+      type: string
+  created_by:
+    type: string
+  created_at:
+    type: string
+    format: date-time

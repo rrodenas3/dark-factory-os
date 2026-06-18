@@ -1,0 +1,9 @@
+[project]
+name = "dark-factory-worker"
+version = "0.1.0"
+description = "Dark Factory OS worker runtime placeholder"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.uv]
+package = true

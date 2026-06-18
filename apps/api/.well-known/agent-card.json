@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "1.0",
+  "name": "dark-factory-os",
+  "description": "Governed agentic operations platform for enterprise workflows",
+  "url": "https://your-deployment.example.com",
+  "protocolBindings": ["json-rpc", "http"],
+  "skills": [
+    {
+      "id": "retail-ops",
+      "name": "Retail & CPG Operations",
+      "description": "Promo rebalance, inventory management, margin analysis, and UCP-style commerce workflows"
+    },
+    {
+      "id": "finance-ops",
+      "name": "Finance Operations",
+      "description": "AP exception resolution, spend anomaly detection, and policy compliance"
+    },
+    {
+      "id": "saas-ops",
+      "name": "SaaS Incident & Revenue Ops",
+      "description": "Incident triage, churn risk analysis, and cross-system correlation"
+    }
+  ],
+  "security": {
+    "scheme": "Bearer",
+    "scopes": ["runs:write", "approvals:write", "memory:read"]
+  },
+  "governance": {
+    "humanGateRequired": ["destructive", "financial"],
+    "auditTrail": true,
+    "riskTiers": ["read_only", "financial", "destructive"]
+  }
+}

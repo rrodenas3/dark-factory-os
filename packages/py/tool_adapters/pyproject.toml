@@ -1,0 +1,9 @@
+[project]
+name = "dark-factory-tool-adapters"
+version = "0.1.0"
+description = "Mock enterprise tools and MCP-compatible adapters"
+requires-python = ">=3.12"
+dependencies = ["pydantic>=2.10.4"]
+
+[tool.uv]
+package = true
