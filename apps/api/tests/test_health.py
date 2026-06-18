@@ -77,3 +77,25 @@ def test_resume_run_records_approval_decision() -> None:
     detail = client.get(f"/api/runs/{created['id']}").json()
     assert detail["pending_approval"] is False
     assert detail["outcome"]["approval_decision"] == "approved"
+
+
+def test_memory_search_returns_live_results() -> None:
+    response = TestClient(app).post(
+        "/api/memory/search",
+        json={"query": "invoice mismatch vendor", "namespace": "finance"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["matches"]
+    first = body["matches"][0]
+    assert "entity_key" in first
+    assert "score" in first
+    assert first["score"] > 0
+
+
+def test_memory_demo_returns_seeded_items() -> None:
+    response = TestClient(app).get("/api/memory/demo")
+    assert response.status_code == 200
+    items = response.json()
+    namespaces = {item["namespace"] for item in items}
+    assert "finance.vendor_risk" in namespaces
