@@ -172,7 +172,7 @@ def _row_to_step(row: asyncpg.Record) -> RunStepRecord:
             return None
         if isinstance(value, str):
             return cast(dict[str, Any], json.loads(value))
-        return dict(value)
+        return cast(dict[str, Any], dict(value))
 
     return RunStepRecord(
         id=row["id"],
