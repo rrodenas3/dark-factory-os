@@ -64,6 +64,10 @@ def test_search_decay_weighted() -> None:
     store = InMemoryStore()
     item = _make_item("finance.vendor_risk", "acme", "semantic", {"summary": "low trust item"})
     store.upsert(item, validate=False)
-    results_weighted = store.search(MemoryQuery(query="low trust item", namespace="finance.vendor_risk", decay_weighted=True))  # noqa: E501
-    results_flat = store.search(MemoryQuery(query="low trust item", namespace="finance.vendor_risk", decay_weighted=False))  # noqa: E501
+    results_weighted = store.search(
+        MemoryQuery(query="low trust item", namespace="finance.vendor_risk", decay_weighted=True)
+    )  # noqa: E501
+    results_flat = store.search(
+        MemoryQuery(query="low trust item", namespace="finance.vendor_risk", decay_weighted=False)
+    )  # noqa: E501
     assert len(results_weighted) == len(results_flat)

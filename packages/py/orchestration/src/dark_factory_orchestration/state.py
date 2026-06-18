@@ -11,16 +11,16 @@ class RunState(TypedDict, total=False):
     """
 
     run_id: str
-    vertical: str          # "finance" | "retail" | "saas"
+    vertical: str  # "finance" | "retail" | "saas"
     skill_name: str
-    plan: list[str]        # ordered tool names the planner resolved
+    plan: list[str]  # ordered tool names the planner resolved
     current_step: int
     step_count: int
     cost_usd: float
-    status: str            # "running" | "paused" | "approval_required" | "completed" | "failed"
+    status: str  # "running" | "paused" | "approval_required" | "completed" | "failed"
     pending_approval: bool
     approval_role: str | None
-    tool_trace: list[dict[str, Any]]   # [{tool_name, success, latency_ms, cost_usd}]
+    tool_trace: list[dict[str, Any]]  # [{tool_name, success, latency_ms, cost_usd}]
     memory_context: list[dict[str, Any]]
     policy_citations: list[str]
     outcome: dict[str, Any] | None

@@ -1,4 +1,4 @@
-from .graph import build_graph
+from .graph import RunGraph, build_graph
 from .state import RunState
 
-__all__ = ["RunState", "build_graph"]
+__all__ = ["RunGraph", "RunState", "build_graph"]

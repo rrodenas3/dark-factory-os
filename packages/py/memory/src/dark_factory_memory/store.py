@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from .models import MemoryItem, MemoryQuery, MemorySearchResult, MemoryType
@@ -18,7 +18,7 @@ def _keyword_similarity(query: str, item: MemoryItem) -> float:
 
 
 def _decay_weight(item: MemoryItem, lam: float = 0.01) -> float:
-    age_seconds = (datetime.utcnow() - item.last_accessed).total_seconds()
+    age_seconds = (datetime.now(UTC) - item.last_accessed).total_seconds()
     return math.exp(-lam * age_seconds / 3600)
 
 
@@ -47,7 +47,9 @@ class InMemoryStore:
     def _write_gate(self, item: MemoryItem) -> None:
         # Semantic memory requires external verification before being trusted.
         if item.memory_type == "semantic" and item.source_trust < 0.6:
-            raise ValueError(f"Semantic memory item '{item.entity_key}' has trust {item.source_trust} < 0.6 — write rejected")  # noqa: E501
+            raise ValueError(
+                f"Semantic memory item '{item.entity_key}' has trust {item.source_trust} < 0.6 — write rejected"
+            )  # noqa: E501
         # Episodic memory is append-only: reject overwrites.
         existing_key = self._key(item)
         if item.memory_type == "episodic" and existing_key in self._items:
@@ -96,7 +98,12 @@ class InMemoryStore:
                 "namespace": "finance.vendor_risk",
                 "entity_key": "contoso-logistics",
                 "memory_type": "semantic",
-                "content": {"summary": "Prior amount mismatches resolved after PO correction; payments above $1K require review.", "risk_level": "elevated"},  # noqa: E501
+                "content": {
+                    "summary": (
+                        "Prior amount mismatches resolved after PO correction; payments above $1K require review."
+                    ),
+                    "risk_level": "elevated",
+                },  # noqa: E501
                 "source_trust": 0.92,
                 "consistency_verified": True,
             },
@@ -104,7 +111,10 @@ class InMemoryStore:
                 "namespace": "finance.vendor_risk",
                 "entity_key": "tailspin-supplies",
                 "memory_type": "semantic",
-                "content": {"summary": "Two disputed invoices in prior quarter; vendor risk flag elevated.", "risk_level": "high"},  # noqa: E501
+                "content": {
+                    "summary": "Two disputed invoices in prior quarter; vendor risk flag elevated.",
+                    "risk_level": "high",
+                },  # noqa: E501
                 "source_trust": 0.88,
                 "consistency_verified": True,
             },
@@ -112,7 +122,11 @@ class InMemoryStore:
                 "namespace": "retail.campaign_history",
                 "entity_key": "sparkling-water-12pk",
                 "memory_type": "semantic",
-                "content": {"summary": "Margin drops correlate with channel mix shift and supplier rebate timing during Q2 promos."},  # noqa: E501
+                "content": {
+                    "summary": (
+                        "Margin drops correlate with channel mix shift and supplier rebate timing during Q2 promos."
+                    )
+                },  # noqa: E501
                 "source_trust": 0.89,
                 "consistency_verified": True,
             },
@@ -120,7 +134,10 @@ class InMemoryStore:
                 "namespace": "saas.incident_history",
                 "entity_key": "billing-api",
                 "memory_type": "episodic",
-                "content": {"summary": "Recent P1 spikes followed deploys touching invoice-preview and payment-retry logic.", "sha_pattern": "invoice-preview"},  # noqa: E501
+                "content": {
+                    "summary": "Recent P1 spikes followed deploys touching invoice-preview and payment-retry logic.",
+                    "sha_pattern": "invoice-preview",
+                },  # noqa: E501
                 "source_trust": 0.86,
                 "consistency_verified": True,
             },

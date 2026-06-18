@@ -8,7 +8,10 @@ const WEBMCP_ENABLED = process.env.NEXT_PUBLIC_WEBMCP_ENABLED === "true";
 type ToolRegistration = { registered: boolean; toolName: string | null };
 
 export default function PromoConfirmPage() {
-	const [toolReg, setToolReg] = useState<ToolRegistration>({ registered: false, toolName: null });
+	const [toolReg, setToolReg] = useState<ToolRegistration>({
+		registered: false,
+		toolName: null,
+	});
 	const [confirmed, setConfirmed] = useState<boolean | null>(null);
 
 	useEffect(() => {
@@ -51,7 +54,10 @@ export default function PromoConfirmPage() {
 			},
 		});
 
-		setToolReg({ registered: true, toolName: "retail.confirm_promo_rebalance" });
+		setToolReg({
+			registered: true,
+			toolName: "retail.confirm_promo_rebalance",
+		});
 		return () => handle.unregister();
 	}, []);
 
@@ -78,35 +84,75 @@ export default function PromoConfirmPage() {
 				<h2>Promo Rebalance Proposal</h2>
 				<table className="table" style={{ marginTop: 12 }}>
 					<tbody>
-						<tr><td className="muted">SKU</td><td>Sparkling Water 12pk (SKU-SW12)</td></tr>
-						<tr><td className="muted">Current margin delta</td><td style={{ color: "var(--red)" }}>−4.3%</td></tr>
-						<tr><td className="muted">Proposed price band</td><td>−8% within POL-PRICE-04 limits</td></tr>
-						<tr><td className="muted">Reorder quantity</td><td>2,400 units</td></tr>
-						<tr><td className="muted">Policy</td><td>POL-PRICE-04 §1.0 — within 15% of baseline</td></tr>
-						<tr><td className="muted">Confidence</td><td>0.89</td></tr>
-						<tr><td className="muted">Risk tier</td><td>financial</td></tr>
-						<tr><td className="muted">Approver role</td><td>commercial-manager</td></tr>
+						<tr>
+							<td className="muted">SKU</td>
+							<td>Sparkling Water 12pk (SKU-SW12)</td>
+						</tr>
+						<tr>
+							<td className="muted">Current margin delta</td>
+							<td style={{ color: "var(--red)" }}>−4.3%</td>
+						</tr>
+						<tr>
+							<td className="muted">Proposed price band</td>
+							<td>−8% within POL-PRICE-04 limits</td>
+						</tr>
+						<tr>
+							<td className="muted">Reorder quantity</td>
+							<td>2,400 units</td>
+						</tr>
+						<tr>
+							<td className="muted">Policy</td>
+							<td>POL-PRICE-04 §1.0 — within 15% of baseline</td>
+						</tr>
+						<tr>
+							<td className="muted">Confidence</td>
+							<td>0.89</td>
+						</tr>
+						<tr>
+							<td className="muted">Risk tier</td>
+							<td>financial</td>
+						</tr>
+						<tr>
+							<td className="muted">Approver role</td>
+							<td>commercial-manager</td>
+						</tr>
 					</tbody>
 				</table>
 
 				{confirmed !== null && (
-					<p style={{ marginTop: 16, color: confirmed ? "var(--green)" : "var(--red)" }}>
-						{confirmed ? "Proposal approved — ARP written, action queued." : "Proposal rejected — agent notified for revision."}
+					<p
+						style={{
+							marginTop: 16,
+							color: confirmed ? "var(--green)" : "var(--red)",
+						}}
+					>
+						{confirmed
+							? "Proposal approved — ARP written, action queued."
+							: "Proposal rejected — agent notified for revision."}
 					</p>
 				)}
 
 				<div className="actions" style={{ marginTop: 20 }}>
-					<button className="button" type="button" onClick={() => setConfirmed(true)}>
+					<button
+						className="button"
+						type="button"
+						onClick={() => setConfirmed(true)}
+					>
 						Approve proposal
 					</button>
-					<button className="button" type="button" onClick={() => setConfirmed(false)}>
+					<button
+						className="button"
+						type="button"
+						onClick={() => setConfirmed(false)}
+					>
 						Send back for revision
 					</button>
 				</div>
 				<p className="muted" style={{ marginTop: 12, fontSize: 12 }}>
-					WebMCP is an experimental W3C Draft (Chrome 149 origin trial). This page registers{" "}
-					<code>retail.confirm_promo_rebalance</code> so an agent can request the user's decision
-					without opaque backend execution. The user must explicitly confirm before any pricing action runs.
+					WebMCP is an experimental W3C Draft (Chrome 149 origin trial). This
+					page registers <code>retail.confirm_promo_rebalance</code> so an agent
+					can request the user's decision without opaque backend execution. The
+					user must explicitly confirm before any pricing action runs.
 				</p>
 			</section>
 		</main>

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Literal
 from uuid import UUID, uuid4
 
@@ -20,8 +20,8 @@ class MemoryItem(BaseModel):
     source_trust: float = Field(default=1.0, ge=0.0, le=1.0)
     decay_score: float = Field(default=1.0, ge=0.0, le=1.0)
     consistency_verified: bool = False
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    last_accessed: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    last_accessed: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class MemoryQuery(BaseModel):

@@ -55,7 +55,9 @@ def test_dispatch_memory_search_returns_summary() -> None:
 
 
 def test_dispatch_approvals_request_returns_pending() -> None:
-    result = dispatch(ToolCall(name="approvals.request", args={"action_type": "erp.post_payment", "approver_role": "finance-manager"}))  # noqa: E501
+    result = dispatch(
+        ToolCall(name="approvals.request", args={"action_type": "erp.post_payment", "approver_role": "finance-manager"})
+    )  # noqa: E501
     assert result.success
     assert result.requires_approval
     assert result.output["status"] == "pending"

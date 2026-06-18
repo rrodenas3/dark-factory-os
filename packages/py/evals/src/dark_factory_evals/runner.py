@@ -12,13 +12,17 @@ from dark_factory_orchestration.state import RunState
 from .metrics import CaseResult, CLEARReport, TrajectoryScore
 from .validate import GoldenCase, validate_dataset
 
-_DEFAULT_REGISTRY_PATH = Path(__file__).resolve().parents[5] / "packages" / "py" / "governance" / "risk_registry.yaml"
+
+def _find_repo_root(start: Path) -> Path:
+    for candidate in [start, *start.parents]:
+        if (candidate / "packages" / "py" / "governance" / "risk_registry.yaml").exists():
+            return candidate
+    raise FileNotFoundError("Could not find repository root containing packages/py/governance/risk_registry.yaml")
 
 
 def _load_registry() -> RiskRegistry:
-    if _DEFAULT_REGISTRY_PATH.exists():
-        return load_risk_registry(_DEFAULT_REGISTRY_PATH)
-    raise FileNotFoundError(f"Risk registry not found at {_DEFAULT_REGISTRY_PATH}")
+    registry_path = _find_repo_root(Path(__file__).resolve()) / "packages" / "py" / "governance" / "risk_registry.yaml"
+    return load_risk_registry(registry_path)
 
 
 class EvalRunner:

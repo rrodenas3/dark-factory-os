@@ -16,7 +16,10 @@ _SKILL_PLANS: dict[str, list[str]] = {
     "promo-rebalance": ["analytics.get_campaign_metrics", "policy.search", "memory.search", "pricing.set_price_band"],
     "replenishment-control": ["analytics.get_campaign_metrics", "memory.search", "inventory.reorder"],
     "incident-triage": [  # noqa: E501
-        "analytics.get_incident_metrics", "telemetry.get_deployments", "memory.search", "incident.change_status",
+        "analytics.get_incident_metrics",
+        "telemetry.get_deployments",
+        "memory.search",
+        "incident.change_status",
     ],
     "churn-risk-investigation": ["analytics.get_incident_metrics", "memory.search", "policy.search"],
 }
@@ -78,11 +81,16 @@ def specialist_node(state: RunState, risk_registry: RiskRegistry) -> RunState:
 
     if policy.risk_tier in ("financial", "destructive"):
         result = dispatch(ToolCall(name=tool_name, args={}))
-        tool_trace.append({
-            "tool_name": tool_name, "risk_tier": policy.risk_tier,
-            "success": result.success, "latency_ms": result.latency_ms,
-            "cost_usd": result.cost_usd, "requires_approval": True,
-        })
+        tool_trace.append(
+            {
+                "tool_name": tool_name,
+                "risk_tier": policy.risk_tier,
+                "success": result.success,
+                "latency_ms": result.latency_ms,
+                "cost_usd": result.cost_usd,
+                "requires_approval": True,
+            }
+        )
         return {
             **state,
             "current_step": step + 1,

@@ -50,5 +50,12 @@ def test_clear_summary_has_all_dimensions() -> None:
     runner = _make_runner()
     report = runner.run_dataset(DATASETS / "finance_goldens.jsonl", "finance")
     summary = report.summary()
-    for key in ("task_success_rate", "grounding_score", "approval_precision", "trajectory_f1", "avg_cost_usd", "p95_latency_ms"):  # noqa: E501
+    for key in (
+        "task_success_rate",
+        "grounding_score",
+        "approval_precision",
+        "trajectory_f1",
+        "avg_cost_usd",
+        "p95_latency_ms",
+    ):  # noqa: E501
         assert key in summary, f"Missing CLEAR dimension: {key}"
