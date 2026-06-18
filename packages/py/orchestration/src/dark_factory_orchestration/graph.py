@@ -12,6 +12,7 @@ from .nodes import (
     verifier_node,
 )
 from .state import RunState
+from .telemetry import attach_tool_events, node_span, record_outcome, run_span
 
 
 def _find_repo_root(start: Path) -> Path:
@@ -49,21 +50,30 @@ class RunGraph:
         self.registry = _load_registry(risk_registry)
 
     def invoke(self, initial_state: RunState) -> RunState:
-        state = planner_node(initial_state)
-        plan = state.get("plan", [])
+        with run_span(initial_state) as root:
+            with node_span("planner"):
+                state = planner_node(initial_state)
+            plan = state.get("plan", [])
 
-        for _ in range(len(plan) + 1):
-            status = state.get("status", "running")
-            if status in ("completed", "failed", "approval_required"):
-                break
-            state = specialist_node(state, self.registry)
+            for _ in range(len(plan) + 1):
+                status = state.get("status", "running")
+                if status in ("completed", "failed", "approval_required"):
+                    break
+                with node_span("specialist"):
+                    state = specialist_node(state, self.registry)
 
-        state = verifier_node(state)
+            with node_span("verifier"):
+                state = verifier_node(state)
 
-        if state.get("status") == "approval_required":
-            state = approval_gate_node(state)
-        elif state.get("status") == "completed":
-            state = memory_writer_node(state)
+            if state.get("status") == "approval_required":
+                with node_span("approval_gate"):
+                    state = approval_gate_node(state)
+            elif state.get("status") == "completed":
+                with node_span("memory_writer"):
+                    state = memory_writer_node(state)
+
+            attach_tool_events(root, state.get("tool_trace", []))
+            record_outcome(root, state)
 
         return state
 

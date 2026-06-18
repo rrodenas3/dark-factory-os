@@ -4,9 +4,12 @@ version = "0.1.0"
 description = "Dark Factory OS control-plane API"
 requires-python = ">=3.12"
 dependencies = [
+  "dark-factory-memory",
+  "dark-factory-orchestration",
   "fastapi>=0.115.6",
+  "opentelemetry-instrumentation-fastapi>=0.48b0",
   "pydantic>=2.10.4",
-  "uvicorn[standard]>=0.34.0"
+  "uvicorn[standard]>=0.34.0",
 ]
 
 [project.optional-dependencies]
@@ -17,3 +20,7 @@ dev = [
 
 [tool.uv]
 package = true
+
+[tool.uv.sources]
+dark-factory-orchestration = { workspace = true }
+dark-factory-memory = { workspace = true }

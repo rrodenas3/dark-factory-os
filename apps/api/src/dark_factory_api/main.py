@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Literal, cast
 from uuid import UUID, uuid4
 
+from dark_factory_memory import InMemoryStore, MemoryQuery
+from dark_factory_orchestration import RunState, build_graph
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+
+RunStatus = Literal["pending", "running", "paused", "approval_required", "completed", "failed", "cancelled"]
 
 
 class HealthResponse(BaseModel):
@@ -18,10 +22,20 @@ class HealthResponse(BaseModel):
 class Run(BaseModel):
     id: UUID
     workflow_key: str
-    status: Literal["pending", "running", "paused", "approval_required", "completed", "failed", "cancelled"]
+    status: RunStatus
     vertical: Literal["finance", "retail", "saas"]
     total_cost_usd: float = 0.0
     step_count: int = 0
+
+
+class RunDetail(Run):
+    skill_name: str
+    pending_approval: bool = False
+    approval_role: str | None = None
+    policy_citations: list[str] = Field(default_factory=list)
+    tool_trace: list[dict[str, object]] = Field(default_factory=list)
+    outcome: dict[str, object] | None = None
+    error: str | None = None
 
 
 class CreateRunRequest(BaseModel):
@@ -38,9 +52,10 @@ class ApprovalDecisionRequest(BaseModel):
 class MemorySearchRequest(BaseModel):
     query: str
     namespace: str
-    memory_type: Literal["episodic", "semantic", "procedural", "working"]
+    memory_type: Literal["episodic", "semantic", "procedural", "working"] | None = None
     k: int = Field(default=5, ge=1, le=20)
     decay_weighted: bool = True
+    min_trust: float = Field(default=0.0, ge=0.0, le=1.0)
 
 
 app = FastAPI(
@@ -57,7 +72,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-RUNS: dict[UUID, Run] = {}
+RUNS: dict[UUID, RunDetail] = {}
+RUN_STATES: dict[UUID, RunState] = {}
+RUN_GRAPH = build_graph()
+MEMORY_STORE = InMemoryStore()
+MEMORY_STORE.seed_demo()
 
 DEMO_RUNS: list[dict[str, object]] = [
     {
@@ -152,7 +171,7 @@ def health() -> HealthResponse:
 
 
 @app.get("/api/runs", response_model=list[Run])
-def list_runs() -> list[Run]:
+def list_runs() -> list[RunDetail]:
     return list(RUNS.values())
 
 
@@ -163,20 +182,37 @@ def list_demo_runs() -> list[dict[str, object]]:
 
 @app.post("/api/runs", response_model=Run, status_code=201)
 def create_run(payload: CreateRunRequest) -> Run:
-    run = Run(
-        id=uuid4(),
+    run_id = uuid4()
+    state = RUN_GRAPH.invoke(
+        RunState(
+            run_id=str(run_id),
+            vertical=payload.vertical,
+            skill_name=payload.skill_name,
+            outcome={"briefing": payload.briefing_json},
+        )
+    )
+    run = RunDetail(
+        id=run_id,
         workflow_key=payload.skill_name,
-        status="pending",
+        status=_api_status(state.get("status", "failed")),
         vertical=payload.vertical,
-        total_cost_usd=0.0,
-        step_count=0,
+        total_cost_usd=state.get("cost_usd", 0.0),
+        step_count=state.get("step_count", 0),
+        skill_name=payload.skill_name,
+        pending_approval=state.get("pending_approval", False),
+        approval_role=state.get("approval_role"),
+        policy_citations=state.get("policy_citations", []),
+        tool_trace=state.get("tool_trace", []),
+        outcome=state.get("outcome"),
+        error=state.get("error"),
     )
     RUNS[run.id] = run
+    RUN_STATES[run.id] = state
     return run
 
 
-@app.get("/api/runs/{run_id}", response_model=Run)
-def get_run(run_id: UUID) -> Run:
+@app.get("/api/runs/{run_id}", response_model=RunDetail)
+def get_run(run_id: UUID) -> RunDetail:
     try:
         return RUNS[run_id]
     except KeyError as exc:
@@ -188,8 +224,39 @@ def resume_run(run_id: UUID, payload: ApprovalDecisionRequest) -> dict[str, str]
     if run_id not in RUNS:
         raise HTTPException(status_code=404, detail="Run not found")
     run = RUNS[run_id]
-    RUNS[run_id] = run.model_copy(update={"status": "running" if payload.decision == "approved" else "cancelled"})
-    return {"status": "accepted"}
+    status: Literal["completed", "cancelled"] = "completed" if payload.decision == "approved" else "cancelled"
+    RUNS[run_id] = run.model_copy(
+        update={
+            "status": status,
+            "pending_approval": False,
+            "outcome": {
+                **(run.outcome or {}),
+                "approval_decision": payload.decision,
+                "decision_reason": payload.reason,
+            },
+        }
+    )
+    state = RUN_STATES.get(run_id, RunState()).copy()
+    state["status"] = status
+    state["pending_approval"] = False
+    state["outcome"] = RUNS[run_id].outcome
+    RUN_STATES[run_id] = state
+    return {"status": "accepted", "run_status": status}
+
+
+@app.get("/api/runs/{run_id}/trace")
+def get_run_trace(run_id: UUID) -> dict[str, object]:
+    try:
+        run = RUNS[run_id]
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Run not found") from exc
+    return {
+        "run_id": str(run.id),
+        "status": run.status,
+        "tool_trace": run.tool_trace,
+        "policy_citations": run.policy_citations,
+        "outcome": run.outcome,
+    }
 
 
 @app.get("/api/skills")
@@ -211,22 +278,45 @@ def decide_approval(approval_id: str, payload: ApprovalDecisionRequest) -> dict[
 
 @app.post("/api/memory/search")
 def search_memory(payload: MemorySearchRequest) -> dict[str, object]:
+    """Query InMemoryStore with SSGM-style decay-weighted retrieval."""
+    q = MemoryQuery(
+        query=payload.query,
+        namespace=payload.namespace,
+        memory_type=payload.memory_type,
+        k=payload.k,
+        decay_weighted=payload.decay_weighted,
+        min_trust=payload.min_trust,
+    )
+    results = MEMORY_STORE.search(q)
     return {
         "query": payload.query,
         "namespace": payload.namespace,
         "matches": [
             {
-                "entity_key": "demo-policy-context",
-                "score": 0.91,
-                "content": "Synthetic governed memory placeholder. Real retrieval lands in R4.",
+                "entity_key": r.item.entity_key,
+                "memory_type": r.item.memory_type,
+                "score": round(r.score, 4),
+                "source_trust": r.item.source_trust,
+                "content": r.item.content,
             }
+            for r in results
         ],
     }
 
 
 @app.get("/api/memory/demo")
 def memory_demo() -> list[dict[str, object]]:
-    return DEMO_MEMORY
+    return [
+        {
+            "namespace": item.namespace,
+            "entity_key": item.entity_key,
+            "memory_type": item.memory_type,
+            "trust": item.source_trust,
+            "decay_score": item.decay_score,
+            "summary": item.content.get("summary", ""),
+        }
+        for item in MEMORY_STORE.all()
+    ]
 
 
 @app.get("/api/costs/summary")
@@ -247,3 +337,9 @@ def eval_demo() -> dict[str, object]:
             {"workflow": "saas_incident_triage", "success": 0.84, "grounding": 0.90, "approval_rate": 0.18},
         ]
     }
+
+
+def _api_status(status: str) -> RunStatus:
+    if status in {"pending", "running", "paused", "approval_required", "completed", "failed", "cancelled"}:
+        return cast(RunStatus, status)
+    return "failed"
