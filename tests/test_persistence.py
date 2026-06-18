@@ -1,0 +1,101 @@
+from __future__ import annotations
+
+import os
+from pathlib import Path
+from uuid import UUID
+
+import asyncpg
+import pytest
+from dark_factory_persistence import RunRepository
+
+ROOT = Path(__file__).resolve().parents[1]
+MIGRATION = ROOT / "infra" / "migrations" / "001_initial_schema.sql"
+
+
+def _database_url() -> str | None:
+    return os.environ.get("DATABASE_URL")
+
+
+@pytest.fixture(scope="module")
+async def pool() -> asyncpg.Pool:
+    url = _database_url()
+    if not url:
+        pytest.skip("DATABASE_URL not set — skipping Postgres integration tests")
+    pool = await asyncpg.create_pool(url, min_size=1, max_size=2)
+    assert pool is not None
+    async with pool.acquire() as conn:
+        exists = await conn.fetchval("SELECT to_regclass('public.runs')")
+        if exists is None:
+            sql = MIGRATION.read_text(encoding="utf-8")
+            await conn.execute(sql)
+    yield pool
+    await pool.close()
+
+
+@pytest.fixture
+def repo(pool: asyncpg.Pool) -> RunRepository:
+    return RunRepository(pool)
+
+
+@pytest.mark.asyncio
+async def test_create_and_fetch_run(repo: RunRepository) -> None:
+    created = await repo.create_run(
+        workflow_key="ap-exception-resolution",
+        vertical="finance",
+        briefing_json={"invoice_id": "INV-2042"},
+    )
+    assert created.status == "pending"
+    assert created.vertical == "finance"
+
+    fetched = await repo.get_run(created.id)
+    assert fetched is not None
+    assert fetched.id == created.id
+    assert fetched.briefing_json["invoice_id"] == "INV-2042"
+
+
+@pytest.mark.asyncio
+async def test_append_and_list_steps(repo: RunRepository) -> None:
+    run = await repo.create_run(workflow_key="promo-rebalance", vertical="retail")
+    step = await repo.append_step(
+        run_id=run.id,
+        step_type="act",
+        status="ok",
+        tool_name="policy.search",
+        tool_risk_class="read_only",
+        output_json={"matches": []},
+        latency_ms=42,
+        cost_usd=0.001,
+    )
+    assert step.run_id == run.id
+
+    steps = await repo.list_steps(run.id)
+    assert len(steps) == 1
+    assert steps[0].tool_name == "policy.search"
+
+
+@pytest.mark.asyncio
+async def test_update_run_status(repo: RunRepository) -> None:
+    run = await repo.create_run(workflow_key="incident-triage", vertical="saas")
+    updated = await repo.update_run_status(run.id, status="running")
+    assert updated is not None
+    assert updated.status == "running"
+    assert updated.started_at is not None
+
+    completed = await repo.update_run_status(
+        run.id,
+        status="completed",
+        total_cost_usd=0.21,
+        step_count=6,
+    )
+    assert completed is not None
+    assert completed.status == "completed"
+    assert completed.total_cost_usd == 0.21
+    assert completed.ended_at is not None
+
+
+@pytest.mark.asyncio
+async def test_list_runs_returns_recent(repo: RunRepository) -> None:
+    runs = await repo.list_runs(limit=10)
+    assert isinstance(runs, list)
+    for run in runs:
+        assert isinstance(run.id, UUID)

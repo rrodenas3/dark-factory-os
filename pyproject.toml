@@ -10,6 +10,7 @@ dependencies = [
   "dark-factory-governance",
   "dark-factory-memory",
   "dark-factory-orchestration",
+  "dark-factory-persistence",
   "dark-factory-skills-registry",
   "dark-factory-tool-adapters",
 ]
@@ -31,6 +32,7 @@ dark-factory-evals = { workspace = true }
 dark-factory-governance = { workspace = true }
 dark-factory-memory = { workspace = true }
 dark-factory-orchestration = { workspace = true }
+dark-factory-persistence = { workspace = true }
 dark-factory-skills-registry = { workspace = true }
 dark-factory-tool-adapters = { workspace = true }
 
@@ -49,6 +51,10 @@ select = ["E", "F", "I", "UP", "B"]
 python_version = "3.12"
 strict = true
 warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = "asyncpg"
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
