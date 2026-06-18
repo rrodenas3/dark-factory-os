@@ -7,7 +7,11 @@ dependencies = [
   "dark-factory-api",
   "dark-factory-artifacts",
   "dark-factory-evals",
-  "dark-factory-skills-registry"
+  "dark-factory-governance",
+  "dark-factory-memory",
+  "dark-factory-orchestration",
+  "dark-factory-skills-registry",
+  "dark-factory-tool-adapters",
 ]
 
 [dependency-groups]
@@ -24,7 +28,11 @@ dev = [
 dark-factory-api = { workspace = true }
 dark-factory-artifacts = { workspace = true }
 dark-factory-evals = { workspace = true }
+dark-factory-governance = { workspace = true }
+dark-factory-memory = { workspace = true }
+dark-factory-orchestration = { workspace = true }
 dark-factory-skills-registry = { workspace = true }
+dark-factory-tool-adapters = { workspace = true }
 
 [tool.uv.workspace]
 members = ["apps/api", "apps/worker", "packages/py/*"]

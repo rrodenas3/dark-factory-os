@@ -1,11 +1,13 @@
 const links = [
 	["Dashboard", "/"],
 	["Runs", "/runs"],
+	["Traces", "/traces"],
 	["Approvals", "/approvals"],
 	["Skills", "/skills"],
 	["Evals", "/evals"],
 	["Costs", "/costs"],
 	["Knowledge", "/knowledge"],
+	["Retail Promo ↗", "/retail/promo-confirm"],
 ];
 
 export function Nav() {

@@ -3,10 +3,16 @@ name = "dark-factory-evals"
 version = "0.1.0"
 description = "CLEAR eval harness"
 requires-python = ">=3.12"
-dependencies = ["pydantic>=2.10.4"]
+dependencies = [
+  "pydantic>=2.10.4",
+  "dark-factory-governance",
+  "dark-factory-tool-adapters",
+  "dark-factory-orchestration",
+]
 
 [project.scripts]
 dfos-validate-evals = "dark_factory_evals.validate:main"
+dfos-run-evals = "dark_factory_evals.runner:main"
 
 [tool.uv]
 package = true

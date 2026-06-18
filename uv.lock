@@ -167,11 +167,19 @@ name = "dark-factory-evals"
 version = "0.1.0"
 source = { editable = "packages/py/evals" }
 dependencies = [
+    { name = "dark-factory-governance" },
+    { name = "dark-factory-orchestration" },
+    { name = "dark-factory-tool-adapters" },
     { name = "pydantic" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "pydantic", specifier = ">=2.10.4" }]
+requires-dist = [
+    { name = "dark-factory-governance", editable = "packages/py/governance" },
+    { name = "dark-factory-orchestration", editable = "packages/py/orchestration" },
+    { name = "dark-factory-tool-adapters", editable = "packages/py/tool_adapters" },
+    { name = "pydantic", specifier = ">=2.10.4" },
+]
 
 [[package]]
 name = "dark-factory-governance"
@@ -204,11 +212,17 @@ name = "dark-factory-orchestration"
 version = "0.1.0"
 source = { editable = "packages/py/orchestration" }
 dependencies = [
+    { name = "dark-factory-governance" },
+    { name = "dark-factory-tool-adapters" },
     { name = "pydantic" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "pydantic", specifier = ">=2.10.4" }]
+requires-dist = [
+    { name = "dark-factory-governance", editable = "packages/py/governance" },
+    { name = "dark-factory-tool-adapters", editable = "packages/py/tool_adapters" },
+    { name = "pydantic", specifier = ">=2.10.4" },
+]
 
 [[package]]
 name = "dark-factory-os"
@@ -218,7 +232,11 @@ dependencies = [
     { name = "dark-factory-api" },
     { name = "dark-factory-artifacts" },
     { name = "dark-factory-evals" },
+    { name = "dark-factory-governance" },
+    { name = "dark-factory-memory" },
+    { name = "dark-factory-orchestration" },
     { name = "dark-factory-skills-registry" },
+    { name = "dark-factory-tool-adapters" },
 ]
 
 [package.dev-dependencies]
@@ -236,7 +254,11 @@ requires-dist = [
     { name = "dark-factory-api", editable = "apps/api" },
     { name = "dark-factory-artifacts", editable = "packages/py/artifacts" },
     { name = "dark-factory-evals", editable = "packages/py/evals" },
+    { name = "dark-factory-governance", editable = "packages/py/governance" },
+    { name = "dark-factory-memory", editable = "packages/py/memory" },
+    { name = "dark-factory-orchestration", editable = "packages/py/orchestration" },
     { name = "dark-factory-skills-registry", editable = "packages/py/skills_registry" },
+    { name = "dark-factory-tool-adapters", editable = "packages/py/tool_adapters" },
 ]
 
 [package.metadata.requires-dev]

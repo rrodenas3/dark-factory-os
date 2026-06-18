@@ -34,6 +34,7 @@ jobs:
       - run: uv run dfos-validate-artifacts
       - run: uv run dfos-validate-evals
       - run: uv run dfos-validate-skills
+      - run: uv run dfos-run-evals
 
   typescript:
     runs-on: ubuntu-latest
