@@ -2,7 +2,7 @@
   "schemaVersion": "1.0",
   "name": "dark-factory-os",
   "description": "Governed agentic operations platform for enterprise workflows",
-  "url": "https://your-deployment.example.com",
+  "url": "https://github.com/rrodenas3/dark-factory-os",
   "protocolBindings": ["json-rpc", "http"],
   "skills": [
     {
