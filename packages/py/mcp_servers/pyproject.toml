@@ -1,0 +1,9 @@
+[project]
+name = "dark-factory-mcp-servers"
+version = "0.1.0"
+description = "MCP server contracts and adapter specifications for Dark Factory OS"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.uv]
+package = false

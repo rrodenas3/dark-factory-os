@@ -12,6 +12,7 @@ members = [
     "dark-factory-artifacts",
     "dark-factory-evals",
     "dark-factory-governance",
+    "dark-factory-mcp-servers",
     "dark-factory-memory",
     "dark-factory-orchestration",
     "dark-factory-os",
@@ -253,6 +254,11 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.10.4" },
     { name = "pyyaml", specifier = ">=6.0.2" },
 ]
+
+[[package]]
+name = "dark-factory-mcp-servers"
+version = "0.1.0"
+source = { virtual = "packages/py/mcp_servers" }
 
 [[package]]
 name = "dark-factory-memory"
