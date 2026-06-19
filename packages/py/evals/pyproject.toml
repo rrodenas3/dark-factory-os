@@ -13,6 +13,7 @@ dependencies = [
 [project.scripts]
 dfos-validate-evals = "dark_factory_evals.validate:main"
 dfos-run-evals = "dark_factory_evals.runner:main"
+dfos-propose-skill = "dark_factory_evals.hill_climb:main"
 
 [tool.uv]
 package = true
