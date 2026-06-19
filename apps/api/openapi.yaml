@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: Dark Factory OS Control Plane API
   version: 0.1.0
-  description: Governed agentic operations platform API.
+  description: Governed agentic operations platform API for runs, approvals, memory, skills, evals, costs, and audit.
 servers:
   - url: http://localhost:8000
 security:
@@ -10,10 +10,16 @@ security:
 paths:
   /health:
     get:
+      summary: Health check.
       security: []
       responses:
         "200":
-          description: Health status
+          description: Health status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
   /api/runs:
     post:
       summary: Create a governed agent run.
@@ -25,22 +31,32 @@ paths:
               $ref: "#/components/schemas/CreateRunRequest"
       responses:
         "201":
-          description: Created run
+          description: Created run.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Run"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
     get:
       summary: List runs.
+      parameters:
+        - $ref: "#/components/parameters/Vertical"
+        - $ref: "#/components/parameters/RunStatus"
       responses:
         "200":
-          description: Runs
+          description: Runs.
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: "#/components/schemas/Run"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /api/runs/{id}:
     get:
       summary: Get run by ID.
@@ -48,11 +64,16 @@ paths:
         - $ref: "#/components/parameters/Id"
       responses:
         "200":
-          description: Run
+          description: Run.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Run"
+                $ref: "#/components/schemas/RunDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /api/runs/{id}/resume:
     post:
       summary: Resume a paused run after an approval decision.
@@ -66,30 +87,86 @@ paths:
               $ref: "#/components/schemas/ResumeRunRequest"
       responses:
         "202":
-          description: Resume accepted
+          description: Resume accepted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunResumeResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
   /api/tasks/schedule:
     post:
       summary: Schedule a durable task or heartbeat.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScheduleTaskRequest"
       responses:
         "202":
-          description: Scheduled
+          description: Scheduled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduledTask"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /api/tasks:
     get:
       summary: List scheduled tasks.
       responses:
         "200":
-          description: Tasks
+          description: Tasks.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ScheduledTask"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /api/approvals:
     post:
       summary: Create an approval request.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateApprovalRequest"
       responses:
         "201":
-          description: Approval created
+          description: Approval created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Approval"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
     get:
       summary: List approvals.
+      parameters:
+        - $ref: "#/components/parameters/ApprovalDecision"
       responses:
         "200":
-          description: Approvals
+          description: Approvals.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Approval"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /api/approvals/{id}/decision:
     post:
       summary: Approve or reject an approval request.
@@ -103,19 +180,46 @@ paths:
               $ref: "#/components/schemas/ApprovalDecisionRequest"
       responses:
         "202":
-          description: Decision accepted
+          description: Decision accepted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalDecisionResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
   /api/skills:
     get:
       summary: List registered skills.
       responses:
         "200":
-          description: Skills
+          description: Skills.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Skill"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /api/skills/register:
     post:
       summary: Register or sync skills from disk.
       responses:
         "202":
-          description: Sync started
+          description: Sync started.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SkillSyncResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /api/skills/{id}/evaluate:
     post:
       summary: Evaluate a skill.
@@ -123,7 +227,16 @@ paths:
         - $ref: "#/components/parameters/Id"
       responses:
         "202":
-          description: Eval started
+          description: Eval started.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvalRun"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /api/memory/search:
     post:
       summary: Search governed memory.
@@ -135,19 +248,52 @@ paths:
               $ref: "#/components/schemas/MemorySearchRequest"
       responses:
         "200":
-          description: Memory matches
+          description: Memory matches.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemorySearchResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /api/kg/query:
     post:
       summary: Query knowledge graph relationships.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KnowledgeGraphQueryRequest"
       responses:
         "200":
-          description: Graph results
+          description: Graph results.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeGraphQueryResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /api/evals/run:
     post:
       summary: Run an eval suite.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EvalRunRequest"
       responses:
         "202":
-          description: Eval started
+          description: Eval started.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvalRun"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /api/evals/{id}:
     get:
       summary: Get eval run.
@@ -155,29 +301,89 @@ paths:
         - $ref: "#/components/parameters/Id"
       responses:
         "200":
-          description: Eval result
+          description: Eval result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvalRun"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /api/audit/events:
     get:
       summary: List audit events.
+      parameters:
+        - name: run_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: event_type
+          in: query
+          schema:
+            type: string
       responses:
         "200":
-          description: Audit events
+          description: Audit events.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditEvent"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /api/costs/summary:
     get:
       summary: Get CLEAR cost breakdown.
+      parameters:
+        - $ref: "#/components/parameters/Vertical"
       responses:
         "200":
-          description: Cost summary
+          description: Cost summary.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/CostSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+webhooks:
+  approval.requested:
+    post:
+      summary: Approval notification emitted when a run reaches a human gate.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApprovalWebhook"
+      responses:
+        "202":
+          description: Notification accepted.
+  approval.decided:
+    post:
+      summary: Approval notification emitted when a human decides an ARP.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApprovalWebhook"
+      responses:
+        "202":
+          description: Notification accepted.
+
 components:
   securitySchemes:
     BearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+
   parameters:
     Id:
       name: id
@@ -186,10 +392,55 @@ components:
       schema:
         type: string
         format: uuid
+    Vertical:
+      name: vertical
+      in: query
+      required: false
+      schema:
+        $ref: "#/components/schemas/Vertical"
+    RunStatus:
+      name: status
+      in: query
+      required: false
+      schema:
+        $ref: "#/components/schemas/RunStatus"
+    ApprovalDecision:
+      name: decision
+      in: query
+      required: false
+      schema:
+        $ref: "#/components/schemas/ApprovalDecision"
+
+  responses:
+    BadRequest:
+      description: Request failed validation.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthorized:
+      description: Missing or invalid bearer token.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Requested object was not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Conflict:
+      description: Request conflicts with current run or approval state.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
   schemas:
     Error:
       type: object
-      required: [code, message]
+      required: [code, message, details]
       properties:
         code:
           type: string
@@ -197,51 +448,190 @@ components:
           type: string
         details:
           type: object
+          additionalProperties: true
+
+    HealthStatus:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+
+    Vertical:
+      type: string
+      enum: [retail, finance, saas]
+
+    RunStatus:
+      type: string
+      enum: [pending, running, paused, approval_required, completed, failed, cancelled]
+
+    ApprovalDecision:
+      type: string
+      enum: [approved, rejected, timeout]
+
+    MemoryType:
+      type: string
+      enum: [episodic, semantic, procedural, working]
+
     CreateRunRequest:
       type: object
       required: [briefing_json, vertical, skill_name]
+      additionalProperties: false
       properties:
         briefing_json:
           type: object
+          additionalProperties: true
         vertical:
-          type: string
-          enum: [retail, finance, saas]
+          $ref: "#/components/schemas/Vertical"
         skill_name:
           type: string
+
     ResumeRunRequest:
       type: object
       required: [approval_decision, decided_by]
+      additionalProperties: false
       properties:
         approval_decision:
           type: string
           enum: [approved, rejected]
         decided_by:
           type: string
+
+    RunResumeResponse:
+      type: object
+      required: [run_id, status]
+      properties:
+        run_id:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/RunStatus"
+
     ApprovalDecisionRequest:
       type: object
       required: [decision, reason]
+      additionalProperties: false
       properties:
         decision:
           type: string
           enum: [approved, rejected]
         reason:
           type: string
+          minLength: 1
+
+    ApprovalDecisionResponse:
+      type: object
+      required: [approval_id, decision]
+      properties:
+        approval_id:
+          type: string
+          format: uuid
+        decision:
+          $ref: "#/components/schemas/ApprovalDecision"
+
+    CreateApprovalRequest:
+      type: object
+      required: [run_id, action_type, action_payload_json, approver_role]
+      additionalProperties: false
+      properties:
+        run_id:
+          type: string
+          format: uuid
+        action_type:
+          type: string
+        action_payload_json:
+          type: object
+          additionalProperties: true
+        arp_json:
+          $ref: "#/components/schemas/ActionReadinessPack"
+        requested_by_agent_id:
+          type: string
+          format: uuid
+        approver_role:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+
     MemorySearchRequest:
       type: object
       required: [query, namespace, memory_type, k]
+      additionalProperties: false
       properties:
         query:
           type: string
         namespace:
           type: string
         memory_type:
-          type: string
-          enum: [episodic, semantic, procedural, working]
+          $ref: "#/components/schemas/MemoryType"
         k:
           type: integer
+          minimum: 1
+          maximum: 50
         decay_weighted:
           type: boolean
           default: true
+
+    MemorySearchResponse:
+      type: object
+      required: [matches]
+      properties:
+        matches:
+          type: array
+          items:
+            $ref: "#/components/schemas/MemoryItem"
+
+    KnowledgeGraphQueryRequest:
+      type: object
+      required: [query]
+      additionalProperties: false
+      properties:
+        query:
+          type: string
+        vertical:
+          $ref: "#/components/schemas/Vertical"
+        limit:
+          type: integer
+          default: 10
+
+    KnowledgeGraphQueryResponse:
+      type: object
+      required: [entities, edges]
+      properties:
+        entities:
+          type: array
+          items:
+            $ref: "#/components/schemas/KnowledgeGraphEntity"
+        edges:
+          type: array
+          items:
+            $ref: "#/components/schemas/KnowledgeGraphEdge"
+
+    EvalRunRequest:
+      type: object
+      required: [suite_name]
+      additionalProperties: false
+      properties:
+        suite_name:
+          type: string
+        vertical:
+          $ref: "#/components/schemas/Vertical"
+
+    ScheduleTaskRequest:
+      type: object
+      required: [task_type, schedule]
+      additionalProperties: false
+      properties:
+        task_type:
+          type: string
+          enum: [heartbeat, eval, skill_sync, memory_decay]
+        schedule:
+          type: string
+        payload_json:
+          type: object
+          additionalProperties: true
+
     Run:
       type: object
       required: [id, workflow_key, status, vertical, total_cost_usd, step_count]
@@ -251,22 +641,344 @@ components:
           format: uuid
         workflow_key:
           type: string
+        agent_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
         status:
-          type: string
-          enum: [pending, running, paused, approval_required, completed, failed, cancelled]
+          $ref: "#/components/schemas/RunStatus"
         vertical:
-          type: string
-          enum: [retail, finance, saas]
+          $ref: "#/components/schemas/Vertical"
+        briefing_json:
+          type: object
+          additionalProperties: true
         total_cost_usd:
           type: number
         step_count:
           type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    RunDetail:
+      allOf:
+        - $ref: "#/components/schemas/Run"
+        - type: object
+          required: [steps, approvals]
+          properties:
+            steps:
+              type: array
+              items:
+                $ref: "#/components/schemas/RunStep"
+            approvals:
+              type: array
+              items:
+                $ref: "#/components/schemas/Approval"
+
+    RunStep:
+      type: object
+      required: [id, run_id, step_type, status, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        run_id:
+          type: string
+          format: uuid
+        step_type:
+          type: string
+          enum: [plan, act, observe, verify, retry, human_gate]
+        tool_name:
+          type: string
+        risk_tier:
+          type: string
+          enum: [read_only, financial, destructive]
+        status:
+          type: string
+        input_json:
+          type: object
+          additionalProperties: true
+        output_json:
+          type: object
+          additionalProperties: true
+        latency_ms:
+          type: integer
+        cost_usd:
+          type: number
+        created_at:
+          type: string
+          format: date-time
+
+    Approval:
+      type: object
+      required: [id, run_id, action_type, action_payload_json, approver_role, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        run_id:
+          type: string
+          format: uuid
+        action_type:
+          type: string
+        action_payload_json:
+          type: object
+          additionalProperties: true
+        arp_json:
+          $ref: "#/components/schemas/ActionReadinessPack"
+        requested_by_agent_id:
+          type: string
+          format: uuid
+        approver_role:
+          type: string
+        approver_user_id:
+          type: string
+          format: uuid
+        decision:
+          $ref: "#/components/schemas/ApprovalDecision"
+        decision_reason:
+          type: string
+        decided_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+    ActionReadinessPack:
+      type: object
+      required: [run_id, action_type, proposed_action, evidence, risk_assessment, policy_citations, estimated_impact]
+      properties:
+        run_id:
+          type: string
+          format: uuid
+        action_type:
+          type: string
+        proposed_action:
+          type: object
+          additionalProperties: true
+        evidence:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        risk_assessment:
+          type: object
+          additionalProperties: true
+        policy_citations:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        estimated_impact:
+          type: object
+          additionalProperties: true
+        reversible:
+          type: boolean
+        expires_at:
+          type: string
+          format: date-time
+
+    ApprovalWebhook:
+      type: object
+      required: [event_type, approval]
+      properties:
+        event_type:
+          type: string
+          enum: [approval.requested, approval.decided]
+        approval:
+          $ref: "#/components/schemas/Approval"
+
+    Skill:
+      type: object
+      required: [id, name, current_version, owner_team, risk_tier, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        current_version:
+          type: string
+        owner_team:
+          type: string
+        risk_tier:
+          type: string
+          enum: [low, medium, high, critical]
+        status:
+          type: string
+        eval_status:
+          type: string
+
+    MemoryItem:
+      type: object
+      required: [id, namespace, entity_key, memory_type, content_json, score]
+      properties:
+        id:
+          type: string
+          format: uuid
+        namespace:
+          type: string
+        entity_key:
+          type: string
+        memory_type:
+          $ref: "#/components/schemas/MemoryType"
+        content_json:
+          type: object
+          additionalProperties: true
+        score:
+          type: number
+
+    KnowledgeGraphEntity:
+      type: object
+      required: [id, entity_type, entity_key]
+      properties:
+        id:
+          type: string
+          format: uuid
+        entity_type:
+          type: string
+        entity_key:
+          type: string
+        props_json:
+          type: object
+          additionalProperties: true
+
+    KnowledgeGraphEdge:
+      type: object
+      required: [id, source_entity_id, relation, target_entity_id]
+      properties:
+        id:
+          type: string
+          format: uuid
+        source_entity_id:
+          type: string
+          format: uuid
+        relation:
+          type: string
+        target_entity_id:
+          type: string
+          format: uuid
+        props_json:
+          type: object
+          additionalProperties: true
+
+    EvalRun:
+      type: object
+      required: [id, status, summary_json]
+      properties:
+        id:
+          type: string
+          format: uuid
+        eval_suite_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, running, completed, failed]
+        summary_json:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+
+    ScheduledTask:
+      type: object
+      required: [id, task_type, schedule, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        task_type:
+          type: string
+        schedule:
+          type: string
+        status:
+          type: string
+          enum: [scheduled, running, completed, failed, cancelled]
+
+    AuditEvent:
+      type: object
+      required: [id, actor_type, event_type, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        actor_type:
+          type: string
+          enum: [user, agent, system]
+        actor_id:
+          type: string
+          format: uuid
+        event_type:
+          type: string
+        object_type:
+          type: string
+        object_id:
+          type: string
+          format: uuid
+        payload_json:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+
+    SkillSyncResponse:
+      type: object
+      required: [status, synced_count]
+      properties:
+        status:
+          type: string
+          enum: [accepted]
+        synced_count:
+          type: integer
+
     CostSummary:
       type: object
+      required: [total_usd, by_category, by_vertical, clear]
       properties:
         total_usd:
           type: number
         by_category:
           type: object
+          additionalProperties:
+            type: number
         by_vertical:
           type: object
+          additionalProperties:
+            type: number
+        clear:
+          type: object
+          required: [cost, latency, efficiency, accuracy, reliability]
+          properties:
+            cost:
+              type: number
+            latency:
+              type: object
+              properties:
+                p50_seconds:
+                  type: number
+                p95_seconds:
+                  type: number
+            efficiency:
+              type: object
+              properties:
+                tokens_per_successful_step:
+                  type: number
+            accuracy:
+              type: object
+              properties:
+                task_success_rate:
+                  type: number
+            reliability:
+              type: object
+              properties:
+                tool_success_rate:
+                  type: number

@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+import yaml
 from dark_factory_artifacts.validate import validate_all_schemas
 from dark_factory_evals.validate import validate_all_datasets
 from dark_factory_governance.risk_registry import load_risk_registry
@@ -39,3 +40,37 @@ def test_golden_datasets_reference_known_skills_and_tools() -> None:
 
             for tool_name in record["expected_tools_sequence"]:
                 registry.require_tool(tool_name)
+
+
+def test_openapi_matches_control_plane_manifest() -> None:
+    spec = yaml.safe_load((ROOT / "apps" / "api" / "openapi.yaml").read_text(encoding="utf-8"))
+    api_paths = [path for path in spec["paths"] if path.startswith("/api/")]
+
+    assert spec["openapi"] == "3.1.0"
+    assert len(api_paths) == 16
+    assert spec["components"]["securitySchemes"]["BearerAuth"]["scheme"] == "bearer"
+    assert {"approval.requested", "approval.decided"} <= set(spec["webhooks"])
+
+    required_paths = {
+        "/api/runs",
+        "/api/runs/{id}/resume",
+        "/api/approvals/{id}/decision",
+        "/api/memory/search",
+        "/api/costs/summary",
+    }
+    assert required_paths <= set(spec["paths"])
+
+    schemas = spec["components"]["schemas"]
+    for schema_name in ["Run", "Approval", "ActionReadinessPack", "MemorySearchRequest", "CostSummary", "Error"]:
+        assert schema_name in schemas
+
+    assert schemas["Vertical"]["enum"] == ["retail", "finance", "saas"]
+    assert schemas["RunStatus"]["enum"] == [
+        "pending",
+        "running",
+        "paused",
+        "approval_required",
+        "completed",
+        "failed",
+        "cancelled",
+    ]
