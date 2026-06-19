@@ -26,11 +26,51 @@ services:
       timeout: 5s
       retries: 20
 
+  temporal:
+    image: temporalio/auto-setup:1.24
+    environment:
+      DB: postgres12
+      DB_PORT: "5432"
+      POSTGRES_USER: dfos
+      POSTGRES_PWD: dfos
+      POSTGRES_SEEDS: postgres
+      DYNAMIC_CONFIG_FILE_PATH: config/dynamicconfig/development-sql.yaml
+    ports:
+      - "7233:7233"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  temporal-ui:
+    image: temporalio/ui:2.31
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+      TEMPORAL_CORS_ORIGINS: http://localhost:3000
+    ports:
+      - "8080:8080"
+    depends_on:
+      - temporal
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.59
+    ports:
+      - "16686:16686"
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.104.0
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./infra/otel/collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "4318:4318"
+    depends_on:
+      - jaeger
+
   api:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
-    env_file: .env.example
+    env_file: .env
     environment:
       DATABASE_URL: postgresql://dfos:dfos@postgres:5432/dfos
       DFOS_PERSIST_RUNS: "true"
@@ -52,13 +92,15 @@ services:
     build:
       context: .
       dockerfile: apps/worker/Dockerfile
-    env_file: .env.example
+    env_file: .env
     environment:
       DATABASE_URL: postgresql://dfos:dfos@postgres:5432/dfos
       DFOS_MIGRATIONS_DIR: /app/infra/migrations
     depends_on:
       postgres:
         condition: service_healthy
+      temporal:
+        condition: service_started
       api:
         condition: service_healthy
     restart: unless-stopped
