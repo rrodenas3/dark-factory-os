@@ -1,4 +1,4 @@
-from dark_factory_api.main import RUN_STATES, RUNS, app
+from dark_factory_api.main import DEMO_APPROVALS, RUN_STATES, RUNS, app
 from fastapi.testclient import TestClient
 
 
@@ -11,6 +11,15 @@ def test_health() -> None:
     response = TestClient(app).get("/health")
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
+
+
+def test_agent_card_served_from_well_known_route() -> None:
+    response = TestClient(app).get("/.well-known/agent-card.json")
+    assert response.status_code == 200
+    card = response.json()
+    assert card["schemaVersion"] == "1.0"
+    assert card["name"] == "dark-factory-os"
+    assert {"json-rpc", "http"} == set(card["protocolBindings"])
 
 
 def test_create_run_executes_deterministic_harness() -> None:
@@ -106,3 +115,26 @@ def test_memory_demo_returns_seeded_items() -> None:
     items = response.json()
     namespaces = {item["namespace"] for item in items}
     assert "finance.vendor_risk" in namespaces
+
+
+def test_ucp_checkout_proposal_creates_pending_approval() -> None:
+    before = len(DEMO_APPROVALS)
+    response = TestClient(app).post(
+        "/api/ucp/checkout-proposals",
+        json={
+            "sku": "SKU-SW12",
+            "quantity": 12,
+            "unit_price_usd": 16.5,
+            "user_mandate": "Approve promo checkout only after manager review.",
+        },
+    )
+
+    assert response.status_code == 202
+    body = response.json()
+    assert body["status"] == "pending"
+    assert body["proposal"]["protocol"] == "ucp-simulator"
+    assert body["proposal"]["checkout_state"] == "approval_required"
+    assert body["proposal"]["approval"]["risk_tier"] == "financial"
+    assert len(DEMO_APPROVALS) == before + 1
+    assert DEMO_APPROVALS[-1]["action_type"] == "ucp.propose_checkout"
+    assert DEMO_APPROVALS[-1]["run_id"] == body["run_id"]

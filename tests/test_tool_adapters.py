@@ -61,3 +61,20 @@ def test_dispatch_approvals_request_returns_pending() -> None:
     assert result.success
     assert result.requires_approval
     assert result.output["status"] == "pending"
+
+
+def test_dispatch_ucp_checkout_proposal_is_proposal_first() -> None:
+    result = dispatch(
+        ToolCall(
+            name="ucp.propose_checkout",
+            args={"sku": "SKU-SW12", "quantity": 3, "unit_price_usd": 12.5},
+        )
+    )
+
+    assert result.success
+    assert result.requires_approval
+    assert result.approval_role == "commercial-manager"
+    assert result.output["protocol"] == "ucp-simulator"
+    assert result.output["checkout_state"] == "approval_required"
+    assert result.output["total_usd"] == 37.5
+    assert result.output["handoff"]["status"] == "blocked_until_approved"

@@ -6,6 +6,7 @@ from collections.abc import Callable
 from typing import Any
 
 from .models import ToolResult
+from .ucp_simulator import propose_checkout
 
 _Handler = Callable[[dict[str, Any]], ToolResult]
 
@@ -377,12 +378,13 @@ def _incident_change_status(args: dict[str, Any]) -> ToolResult:
 
 
 def _ucp_propose_checkout(args: dict[str, Any]) -> ToolResult:
+    proposal = propose_checkout(args)
     return ToolResult(
         tool_name="ucp.propose_checkout",
         success=True,
-        output={"basket_id": "basket-demo", "total_usd": args.get("total_usd", 0.0)},
+        output=proposal,
         requires_approval=True,
-        approval_role="commercial-manager",
+        approval_role=proposal["approval"]["approver_role"],
     )
 
 

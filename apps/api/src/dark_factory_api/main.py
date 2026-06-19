@@ -1,14 +1,18 @@
 from __future__ import annotations
 
+import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
+from pathlib import Path
 from uuid import UUID, uuid4
 
 from dark_factory_memory import InMemoryStore, MemoryQuery
 from dark_factory_orchestration import RunState, build_graph
+from dark_factory_tool_adapters.ucp_simulator import propose_checkout
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from dark_factory_api import persisted
 from dark_factory_api.schemas import (
@@ -18,6 +22,8 @@ from dark_factory_api.schemas import (
     MemorySearchRequest,
     Run,
     RunDetail,
+    UCPCheckoutProposalRequest,
+    UCPCheckoutProposalResponse,
     api_status,
 )
 
@@ -120,6 +126,12 @@ app.add_middleware(
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
     return HealthResponse(status="ok", service="dark-factory-api", timestamp=datetime.now(UTC))
+
+
+@app.get("/.well-known/agent-card.json")
+def agent_card() -> JSONResponse:
+    card_path = Path(__file__).resolve().parents[2] / ".well-known" / "agent-card.json"
+    return JSONResponse(json.loads(card_path.read_text(encoding="utf-8")))
 
 
 @app.get("/api/runs", response_model=list[Run])
@@ -302,6 +314,66 @@ def memory_demo() -> list[dict[str, object]]:
         }
         for item in MEMORY_STORE.all()
     ]
+
+
+@app.post("/api/ucp/checkout-proposals", response_model=UCPCheckoutProposalResponse, status_code=202)
+async def create_ucp_checkout_proposal(payload: UCPCheckoutProposalRequest) -> UCPCheckoutProposalResponse:
+    proposal = propose_checkout(payload.model_dump(exclude_none=True))
+    if persisted.persist_runs_enabled():
+        return await persisted.create_ucp_checkout_proposal_persisted(payload, proposal)
+    return _create_ucp_checkout_proposal_memory(payload, proposal)
+
+
+def _create_ucp_checkout_proposal_memory(
+    payload: UCPCheckoutProposalRequest, proposal: dict[str, object]
+) -> UCPCheckoutProposalResponse:
+    run_id = payload.run_id or uuid4()
+    if run_id not in RUNS:
+        run = RunDetail(
+            id=run_id,
+            workflow_key="ucp-checkout-proposal",
+            status="approval_required",
+            vertical="retail",
+            total_cost_usd=0.0,
+            step_count=1,
+            skill_name="promo-rebalance",
+            pending_approval=True,
+            approval_role="commercial-manager",
+            policy_citations=["POL-PRICE-04 §1.0"],
+            tool_trace=[
+                {
+                    "tool_name": "ucp.propose_checkout",
+                    "risk_tier": "financial",
+                    "success": True,
+                    "latency_ms": 0,
+                    "cost_usd": 0.0,
+                    "requires_approval": True,
+                    "executed": False,
+                    "proposal": proposal,
+                }
+            ],
+            outcome={"approval_required": True, "proposal": proposal},
+        )
+        RUNS[run_id] = run
+    approval_id = f"ucp-{uuid4().hex[:8]}"
+    DEMO_APPROVALS.append(
+        {
+            "id": approval_id,
+            "run_id": str(run_id),
+            "action_type": "ucp.propose_checkout",
+            "approver_role": "commercial-manager",
+            "risk_tier": "financial",
+            "status": "pending",
+            "summary": f"Approve UCP checkout proposal for {payload.quantity} x {payload.sku}.",
+            "evidence": ["POL-PRICE-04", "UCP-SIMULATOR", str(proposal["cart_id"])],
+        }
+    )
+    return UCPCheckoutProposalResponse(
+        approval_id=approval_id,
+        run_id=str(run_id),
+        status="pending",
+        proposal=proposal,
+    )
 
 
 @app.get("/api/costs/summary")

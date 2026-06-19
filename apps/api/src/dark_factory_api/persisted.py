@@ -17,6 +17,8 @@ from dark_factory_api.schemas import (
     CreateRunRequest,
     Run,
     RunDetail,
+    UCPCheckoutProposalRequest,
+    UCPCheckoutProposalResponse,
     api_status,
 )
 
@@ -56,6 +58,85 @@ async def create_run_persisted(payload: CreateRunRequest) -> Run:
         status="pending",
     )
     return _run_from_record(record)
+
+
+async def create_ucp_checkout_proposal_persisted(
+    payload: UCPCheckoutProposalRequest, proposal: dict[str, object]
+) -> UCPCheckoutProposalResponse:
+    pool = _require_pool()
+    runs = RunRepository(pool)
+    approvals = ApprovalRepository(pool)
+
+    run = await runs.get_run(payload.run_id) if payload.run_id else None
+    if run is None:
+        run = await runs.create_run(
+            workflow_key="ucp-checkout-proposal",
+            vertical="retail",
+            briefing_json={
+                "objective": payload.user_mandate,
+                "protocol": "ucp-simulator",
+                "proposal": proposal,
+            },
+            status="approval_required",
+        )
+        await runs.save_checkpoint(
+            run.id,
+            status="approval_required",
+            checkpoint={
+                "run_id": str(run.id),
+                "vertical": "retail",
+                "skill_name": "promo-rebalance",
+                "status": "approval_required",
+                "pending_approval": True,
+                "approval_role": "commercial-manager",
+                "pending_tool": "ucp.propose_checkout",
+                "policy_citations": ["POL-PRICE-04 §1.0"],
+                "tool_trace": [
+                    {
+                        "tool_name": "ucp.propose_checkout",
+                        "risk_tier": "financial",
+                        "success": True,
+                        "latency_ms": 0,
+                        "cost_usd": 0.0,
+                        "requires_approval": True,
+                        "executed": False,
+                        "proposal": proposal,
+                    }
+                ],
+                "outcome": {"approval_required": True, "proposal": proposal},
+            },
+            total_cost_usd=0.0,
+            step_count=1,
+            persisted_trace_len=1,
+        )
+
+    approval = await approvals.create(
+        run_id=run.id,
+        action_type="ucp.propose_checkout",
+        action_payload=proposal,
+        approver_role="commercial-manager",
+        arp_json={
+            "proposed_action": {
+                "type": "ucp.propose_checkout",
+                "description": f"Approve checkout handoff for {payload.quantity} x {payload.sku}.",
+                "target_system": "ucp-simulator",
+                "payload_preview": proposal,
+            },
+            "risk_assessment": {
+                "tier": "financial",
+                "reversible": False,
+                "blast_radius": "single simulated retail checkout",
+                "confidence": 0.89,
+            },
+            "policy_citations": [{"policy_id": "POL-PRICE-04", "clause_id": "1.0", "compliance_status": "pending"}],
+        },
+    )
+    return UCPCheckoutProposalResponse(
+        approval_id=str(approval.id),
+        run_id=str(run.id),
+        status="pending",
+        proposal=proposal,
+    )
 
 
 async def get_run_persisted(run_id: UUID) -> RunDetail:

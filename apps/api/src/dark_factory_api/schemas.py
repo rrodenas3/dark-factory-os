@@ -54,6 +54,23 @@ class MemorySearchRequest(BaseModel):
     min_trust: float = Field(default=0.0, ge=0.0, le=1.0)
 
 
+class UCPCheckoutProposalRequest(BaseModel):
+    run_id: UUID | None = None
+    sku: str = "SKU-SW12"
+    name: str = "Sparkling Water 12pk"
+    quantity: int = Field(default=24, ge=1, le=10_000)
+    unit_price_usd: float = Field(default=18.99, ge=0)
+    merchant: str = "Dark Factory Retail Demo"
+    user_mandate: str = "Approve a retail promo checkout handoff."
+
+
+class UCPCheckoutProposalResponse(BaseModel):
+    approval_id: str
+    run_id: str
+    status: Literal["pending"]
+    proposal: dict[str, object]
+
+
 def api_status(status: str) -> RunStatus:
     if status in {"pending", "running", "paused", "approval_required", "completed", "failed", "cancelled"}:
         return cast(RunStatus, status)
