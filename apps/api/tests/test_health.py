@@ -1,5 +1,8 @@
+from dark_factory_api import persisted
 from dark_factory_api.main import DEMO_APPROVALS, RUN_STATES, RUNS, app
+from dark_factory_memory import MemoryQuery
 from fastapi.testclient import TestClient
+from pytest import MonkeyPatch
 
 
 def setup_function() -> None:
@@ -115,6 +118,52 @@ def test_memory_demo_returns_seeded_items() -> None:
     items = response.json()
     namespaces = {item["namespace"] for item in items}
     assert "finance.vendor_risk" in namespaces
+
+
+def test_memory_search_uses_persisted_backend_when_enabled(monkeypatch: MonkeyPatch) -> None:
+    async def fake_search(query: MemoryQuery) -> list[dict[str, object]]:
+        return [
+            {
+                "entity_key": "postgres-memory",
+                "memory_type": "semantic",
+                "score": 0.91,
+                "source_trust": 0.9,
+                "content": {"summary": f"served from {query.namespace}"},
+            }
+        ]
+
+    monkeypatch.setattr(persisted, "persist_runs_enabled", lambda: True)
+    monkeypatch.setattr(persisted, "search_memory_persisted", fake_search)
+
+    response = TestClient(app).post(
+        "/api/memory/search",
+        json={"query": "vendor risk", "namespace": "finance"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["matches"][0]["entity_key"] == "postgres-memory"
+
+
+def test_memory_demo_uses_persisted_backend_when_enabled(monkeypatch: MonkeyPatch) -> None:
+    async def fake_demo() -> list[dict[str, object]]:
+        return [
+            {
+                "namespace": "postgres.seed",
+                "entity_key": "persisted",
+                "memory_type": "semantic",
+                "trust": 0.9,
+                "decay_score": 1.0,
+                "summary": "served from postgres",
+            }
+        ]
+
+    monkeypatch.setattr(persisted, "persist_runs_enabled", lambda: True)
+    monkeypatch.setattr(persisted, "memory_demo_persisted", fake_demo)
+
+    response = TestClient(app).get("/api/memory/demo")
+
+    assert response.status_code == 200
+    assert response.json()[0]["namespace"] == "postgres.seed"
 
 
 def test_knowledge_graph_demo_returns_entities_and_edges() -> None:

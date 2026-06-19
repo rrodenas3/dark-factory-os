@@ -6,6 +6,7 @@ from typing import Any, cast
 from uuid import UUID
 
 import asyncpg
+from dark_factory_memory import InMemoryStore, MemoryItem, MemoryQuery, PostgresMemoryStore
 from dark_factory_orchestration import RunGraph, RunState, build_graph
 from dark_factory_persistence import ApprovalRecord, ApprovalRepository, RunRecord, RunRepository
 from dark_factory_persistence.pool import close_pool, get_pool
@@ -34,6 +35,7 @@ async def init_persistence() -> None:
     global _pool
     if _pool is None:
         _pool = await get_pool()
+        await seed_demo_memory_persisted()
 
 
 async def shutdown_persistence() -> None:
@@ -224,6 +226,25 @@ async def get_trace_persisted(run_id: UUID) -> dict[str, object]:
     }
 
 
+async def search_memory_persisted(query: MemoryQuery) -> list[dict[str, object]]:
+    store = PostgresMemoryStore(_require_pool())
+    results = await store.search(query)
+    return [_memory_result_to_api(result.item, round(result.score, 4)) for result in results]
+
+
+async def memory_demo_persisted() -> list[dict[str, object]]:
+    store = PostgresMemoryStore(_require_pool())
+    return [_memory_item_to_api(item) for item in await store.all()]
+
+
+async def seed_demo_memory_persisted() -> None:
+    store = PostgresMemoryStore(_require_pool())
+    demo = InMemoryStore()
+    demo.seed_demo()
+    for item in demo.all():
+        await store.upsert(item, validate=False)
+
+
 async def _resume_run_with_decision(
     runs: RunRepository,
     approvals: ApprovalRepository,
@@ -311,3 +332,24 @@ def _detail_from_record(record: RunRecord) -> RunDetail:
         outcome=checkpoint.get("outcome"),
         error=checkpoint.get("error"),
     )
+
+
+def _memory_result_to_api(item: MemoryItem, score: float) -> dict[str, object]:
+    return {
+        "entity_key": item.entity_key,
+        "memory_type": item.memory_type,
+        "score": score,
+        "source_trust": item.source_trust,
+        "content": item.content,
+    }
+
+
+def _memory_item_to_api(item: MemoryItem) -> dict[str, object]:
+    return {
+        "namespace": item.namespace,
+        "entity_key": item.entity_key,
+        "memory_type": item.memory_type,
+        "trust": item.source_trust,
+        "decay_score": item.decay_score,
+        "summary": item.content.get("summary", ""),
+    }
