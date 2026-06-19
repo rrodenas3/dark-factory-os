@@ -491,7 +491,10 @@ async def memory_demo() -> list[dict[str, object]]:
 
 
 @app.get("/api/knowledge/graph")
-def knowledge_graph_demo() -> dict[str, object]:
+async def knowledge_graph_demo() -> dict[str, object]:
+    if persisted.persist_runs_enabled():
+        return await persisted.knowledge_graph_persisted()
+
     nodes = [
         {
             "id": "contoso-logistics",

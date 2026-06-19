@@ -14,6 +14,7 @@ from dark_factory_persistence import (
     AuditEventRecord,
     AuditRepository,
     CostRepository,
+    KnowledgeGraphRepository,
     RunRecord,
     RunRepository,
 )
@@ -280,6 +281,61 @@ async def list_audit_events_persisted(
 
 async def cost_summary_persisted() -> dict[str, object]:
     return await CostRepository(_require_pool()).summary()
+
+
+async def knowledge_graph_persisted() -> dict[str, object]:
+    graph = await KnowledgeGraphRepository(_require_pool()).graph()
+    if graph["nodes"]:
+        return graph
+    return await seed_demo_knowledge_graph_persisted()
+
+
+async def seed_demo_knowledge_graph_persisted() -> dict[str, object]:
+    repo = KnowledgeGraphRepository(_require_pool())
+    vendor = await repo.upsert_entity(
+        entity_type="vendor",
+        entity_key="contoso-logistics",
+        props_json={"label": "Contoso Logistics", "vertical": "finance", "risk": "elevated"},
+    )
+    sku = await repo.upsert_entity(
+        entity_type="sku",
+        entity_key="sparkling-water-12pk",
+        props_json={"label": "Sparkling Water 12pk", "vertical": "retail", "risk": "medium"},
+    )
+    billing_api = await repo.upsert_entity(
+        entity_type="service",
+        entity_key="billing-api",
+        props_json={"label": "billing-api", "vertical": "saas", "risk": "high"},
+    )
+    price_policy = await repo.upsert_entity(
+        entity_type="policy",
+        entity_key="pol-price-04",
+        props_json={"label": "POL-PRICE-04", "vertical": "retail", "risk": "control"},
+    )
+    ap_policy = await repo.upsert_entity(
+        entity_type="policy",
+        entity_key="pol-ap-12",
+        props_json={"label": "POL-AP-12", "vertical": "finance", "risk": "control"},
+    )
+    await repo.create_edge(
+        source_entity_id=vendor.id,
+        relation="requires_policy_review",
+        target_entity_id=ap_policy.id,
+        props_json={"evidence": "Amount mismatches above threshold."},
+    )
+    await repo.create_edge(
+        source_entity_id=sku.id,
+        relation="constrained_by",
+        target_entity_id=price_policy.id,
+        props_json={"evidence": "Price band changes must remain within baseline limits."},
+    )
+    await repo.create_edge(
+        source_entity_id=billing_api.id,
+        relation="shares_failure_pattern",
+        target_entity_id=vendor.id,
+        props_json={"evidence": "Invoice preview and payment retry incidents affect AP exception flow."},
+    )
+    return await repo.graph()
 
 
 async def get_trace_persisted(run_id: UUID) -> dict[str, object]:

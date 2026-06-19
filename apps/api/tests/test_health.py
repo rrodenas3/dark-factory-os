@@ -235,6 +235,33 @@ def test_knowledge_graph_demo_returns_entities_and_edges() -> None:
     assert any(edge["relation"] == "constrained_by" for edge in graph["edges"])
 
 
+def test_knowledge_graph_uses_persisted_backend_when_enabled(monkeypatch: MonkeyPatch) -> None:
+    async def fake_graph() -> dict[str, object]:
+        return {
+            "generated_from": "postgres_kg",
+            "nodes": [
+                {
+                    "id": "persisted-vendor",
+                    "label": "Persisted Vendor",
+                    "type": "vendor",
+                    "vertical": "finance",
+                    "risk": "medium",
+                }
+            ],
+            "edges": [],
+        }
+
+    monkeypatch.setattr(persisted, "persist_runs_enabled", lambda: True)
+    monkeypatch.setattr(persisted, "knowledge_graph_persisted", fake_graph)
+
+    response = TestClient(app).get("/api/knowledge/graph")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["generated_from"] == "postgres_kg"
+    assert body["nodes"][0]["id"] == "persisted-vendor"
+
+
 def test_ucp_checkout_proposal_creates_pending_approval() -> None:
     before = len(DEMO_APPROVALS)
     response = TestClient(app).post(
