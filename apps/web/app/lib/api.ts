@@ -61,13 +61,33 @@ export type CostSummary = {
 	by_vertical: Record<string, number>;
 };
 
+export type EvalMetric = {
+	workflow: string;
+	vertical: string;
+	cases: number;
+	task_success_rate: number;
+	grounding_score: number;
+	approval_precision: number;
+	trajectory_f1: number;
+	avg_cost_usd: number;
+	p95_latency_ms: number;
+	efficiency_score: number;
+	reliability_score: number;
+};
+
 export type EvalDemo = {
-	metrics: Array<{
-		workflow: string;
-		success: number;
-		grounding: number;
-		approval_rate: number;
-	}>;
+	status: string;
+	source: string;
+	generated_at: string;
+	totals: {
+		cases: number;
+		task_success_rate: number;
+		grounding_score: number;
+		trajectory_f1: number;
+		avg_cost_usd: number;
+		p95_latency_ms: number;
+	};
+	metrics: EvalMetric[];
 };
 
 export type MemoryDemoItem = {

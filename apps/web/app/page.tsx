@@ -6,6 +6,7 @@ import {
 	fetchEvalDemo,
 	fetchRuns,
 	formatCost,
+	formatVertical,
 } from "./lib/api";
 
 const verticals = [
@@ -32,12 +33,6 @@ const demoEvalRows = [
 	["SaaS incident triage", "0.84", "0.90", "0.18", "$0.21"],
 ];
 
-const evalCostByWorkflow: Record<string, string> = {
-	retail_promo_rebalance: "$0.34",
-	finance_ap_exception: "$0.29",
-	saas_incident_triage: "$0.21",
-};
-
 export default async function Home() {
 	let live = false;
 	let activeRuns = 3;
@@ -57,11 +52,11 @@ export default async function Home() {
 		pendingApprovals = approvals.length;
 		costToday = formatCost(costs.total_usd);
 		evalRows = evals.metrics.map((metric) => [
-			metric.workflow.replaceAll("_", " "),
-			metric.success.toFixed(2),
-			metric.grounding.toFixed(2),
-			metric.approval_rate.toFixed(2),
-			evalCostByWorkflow[metric.workflow] ?? "—",
+			`${formatVertical(metric.vertical)} goldens`,
+			metric.task_success_rate.toFixed(2),
+			metric.grounding_score.toFixed(2),
+			metric.approval_precision.toFixed(2),
+			formatCost(metric.avg_cost_usd),
 		]);
 	} catch {
 		live = false;

@@ -241,6 +241,31 @@ a {
 	margin: 12px 0 0;
 }
 
+.clear-card .metric {
+	font-size: 28px;
+}
+
+.trajectory-cell {
+	align-items: center;
+	display: flex;
+	gap: 10px;
+	min-width: 120px;
+}
+
+.trajectory-bar {
+	background: var(--panel-2);
+	border: 1px solid var(--line);
+	border-radius: 999px;
+	height: 8px;
+	overflow: hidden;
+	width: 80px;
+}
+
+.trajectory-bar div {
+	background: var(--cyan);
+	height: 100%;
+}
+
 @media (max-width: 900px) {
 	.knowledge-layout,
 	.search-form {
