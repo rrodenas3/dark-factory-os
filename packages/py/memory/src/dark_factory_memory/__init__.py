@@ -1,4 +1,5 @@
 from .models import AccessScope, MemoryItem, MemoryQuery, MemorySearchResult, MemoryType
+from .pg_store import PostgresMemoryStore
 from .store import InMemoryStore
 
 __all__ = [
@@ -8,4 +9,5 @@ __all__ = [
     "MemorySearchResult",
     "MemoryType",
     "InMemoryStore",
+    "PostgresMemoryStore",
 ]

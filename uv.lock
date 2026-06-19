@@ -340,11 +340,15 @@ name = "dark-factory-memory"
 version = "0.1.0"
 source = { editable = "packages/py/memory" }
 dependencies = [
+    { name = "asyncpg" },
     { name = "pydantic" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "pydantic", specifier = ">=2.10.4" }]
+requires-dist = [
+    { name = "asyncpg", specifier = ">=0.30.0" },
+    { name = "pydantic", specifier = ">=2.10.4" },
+]
 
 [[package]]
 name = "dark-factory-orchestration"
