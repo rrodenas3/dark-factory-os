@@ -1,4 +1,17 @@
-from dark_factory_tool_adapters import ToolCall, dispatch, known_tools
+from pathlib import Path
+
+from dark_factory_governance.risk_registry import load_risk_registry
+from dark_factory_tool_adapters import (
+    MCP_PROTOCOL_VERSION,
+    ToolCall,
+    dispatch,
+    known_tools,
+    tool_endpoint,
+    tool_endpoints,
+)
+
+ROOT = Path(__file__).resolve().parents[1]
+REGISTRY_PATH = ROOT / "packages" / "py" / "governance" / "risk_registry.yaml"
 
 
 def test_known_tools_covers_all_risk_tiers() -> None:
@@ -6,6 +19,34 @@ def test_known_tools_covers_all_risk_tiers() -> None:
     assert "erp.get_invoice" in tools
     assert "erp.post_payment" in tools
     assert "erp.void_invoice" in tools
+
+
+def test_mcp_protocol_version_matches_spec() -> None:
+    assert MCP_PROTOCOL_VERSION == "2026-07-28"
+
+
+def test_tool_endpoint_metadata_covers_governance_registry() -> None:
+    risk_registry = load_risk_registry(REGISTRY_PATH)
+    endpoints = {endpoint.name: endpoint for endpoint in tool_endpoints()}
+
+    assert set(risk_registry.tools) == set(endpoints)
+    for tool_name, policy in risk_registry.tools.items():
+        endpoint = endpoints[tool_name]
+        assert endpoint.protocol == "mcp"
+        assert endpoint.risk_tier == policy.risk_tier
+        if policy.approver_role:
+            assert endpoint.approver_role == policy.approver_role
+        assert endpoint.server_name
+        assert endpoint.description
+
+
+def test_tool_endpoint_exposes_json_schema_metadata() -> None:
+    endpoint = tool_endpoint("erp.get_invoice")
+
+    assert endpoint.server_name == "erp-mock"
+    assert endpoint.input_schema.type == "object"
+    assert endpoint.input_schema.properties["invoice_id"]["type"] == "string"
+    assert endpoint.input_schema.required == ["invoice_id"]
 
 
 def test_dispatch_read_only_tool() -> None:
@@ -41,6 +82,13 @@ def test_dispatch_unknown_tool_returns_failure() -> None:
     result = dispatch(ToolCall(name="not.a.real.tool", args={}))
     assert not result.success
     assert result.error is not None
+
+
+def test_dispatch_missing_required_args_fails_before_handler() -> None:
+    result = dispatch(ToolCall(name="erp.get_invoice", args={}))
+
+    assert not result.success
+    assert "Missing required tool args" in str(result.error)
 
 
 def test_dispatch_missing_invoice_returns_failure() -> None:
