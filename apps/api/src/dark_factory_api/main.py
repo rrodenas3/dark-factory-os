@@ -277,8 +277,8 @@ async def decide_approval(approval_id: str, payload: ApprovalDecisionRequest) ->
 
 
 @app.post("/api/memory/search")
-def search_memory(payload: MemorySearchRequest) -> dict[str, object]:
-    """Query InMemoryStore with SSGM-style decay-weighted retrieval."""
+async def search_memory(payload: MemorySearchRequest) -> dict[str, object]:
+    """Query governed memory with SSGM-style decay-weighted retrieval."""
     q = MemoryQuery(
         query=payload.query,
         namespace=payload.namespace,
@@ -287,6 +287,10 @@ def search_memory(payload: MemorySearchRequest) -> dict[str, object]:
         decay_weighted=payload.decay_weighted,
         min_trust=payload.min_trust,
     )
+    if persisted.persist_runs_enabled():
+        matches = await persisted.search_memory_persisted(q)
+        return {"query": payload.query, "namespace": payload.namespace, "matches": matches}
+
     results = MEMORY_STORE.search(q)
     return {
         "query": payload.query,
@@ -305,7 +309,10 @@ def search_memory(payload: MemorySearchRequest) -> dict[str, object]:
 
 
 @app.get("/api/memory/demo")
-def memory_demo() -> list[dict[str, object]]:
+async def memory_demo() -> list[dict[str, object]]:
+    if persisted.persist_runs_enabled():
+        return await persisted.memory_demo_persisted()
+
     return [
         {
             "namespace": item.namespace,
