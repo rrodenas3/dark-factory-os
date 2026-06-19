@@ -143,8 +143,8 @@ OTEL GenAI semantic conventions (`gen_ai.*`) wired in R4. Traces visible in Lang
 Every user, agent, tool, run, approval, memory write, and cost event is attributable:
 
 ```
-users(role) → agents(risk_level, budget_daily_usd) → runs(vertical, briefing_json)
-runs → run_steps(step_type, tool_risk_class, span_json)
+users(role) → agents(risk_tier, budget_daily_usd) → runs(vertical, briefing_json)
+runs → run_steps(step_type, risk_tier, span_json)
 runs → approvals(arp_json, approver_role, decision)
 runs → cost_ledger(category, amount_usd)
 audit_events(actor_type, actor_id, event_type)

@@ -41,7 +41,7 @@ class RunStepRecord(BaseModel):
     run_id: UUID
     step_type: StepType
     tool_name: str | None = None
-    tool_risk_class: str | None = None
+    risk_tier: str | None = None
     status: str
     input_json: dict[str, Any] | None = None
     output_json: dict[str, Any] | None = None
