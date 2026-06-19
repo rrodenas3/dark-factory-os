@@ -237,6 +237,34 @@ export type AuditEvent = {
 	created_at: string | null;
 };
 
+export type UserContext = {
+	id: string;
+	email: string;
+	role: "admin" | "operator" | "analyst" | "viewer" | string;
+	verticals: Array<"finance" | "retail" | "saas" | string>;
+	permissions: string[];
+	active_agent: {
+		id: string;
+		name: string;
+		risk_tier: "low" | "medium" | "high" | "critical" | string;
+		budget_daily_usd: number;
+		status: string;
+	};
+	workbench: Array<{
+		id: string;
+		label: string;
+		vertical: "finance" | "retail" | "saas" | string;
+		priority: "low" | "medium" | "high" | "critical" | string;
+		signal: string;
+		next_action: string;
+		href: string;
+	}>;
+};
+
+export async function fetchUserContext(): Promise<UserContext> {
+	return fetchJson<UserContext>("/api/me");
+}
+
 export async function fetchRuns(): Promise<ApiRun[]> {
 	return fetchJson<ApiRun[]>("/api/runs");
 }

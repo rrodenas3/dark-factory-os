@@ -1,5 +1,6 @@
 const links = [
 	["Dashboard", "/"],
+	["Workbench", "/workbench"],
 	["Runs", "/runs"],
 	["Traces", "/traces"],
 	["Approvals", "/approvals"],
