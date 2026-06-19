@@ -31,6 +31,10 @@ services:
       context: .
       dockerfile: apps/api/Dockerfile
     env_file: .env.example
+    environment:
+      DATABASE_URL: postgresql://dfos:dfos@postgres:5432/dfos
+      DFOS_PERSIST_RUNS: "true"
+      DFOS_MIGRATIONS_DIR: /app/infra/migrations
     ports:
       - "8000:8000"
     depends_on:
@@ -44,12 +48,28 @@ services:
       timeout: 5s
       retries: 12
 
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    env_file: .env.example
+    environment:
+      DATABASE_URL: postgresql://dfos:dfos@postgres:5432/dfos
+      DFOS_MIGRATIONS_DIR: /app/infra/migrations
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
   web:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000
+      API_INTERNAL_URL: http://api:8000
       NEXT_PUBLIC_WEBMCP_ENABLED: "false"
     ports:
       - "3000:3000"

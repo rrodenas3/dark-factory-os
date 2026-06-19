@@ -6,6 +6,7 @@ requires-python = ">=3.12"
 dependencies = [
   "dark-factory-memory",
   "dark-factory-orchestration",
+  "dark-factory-persistence",
   "fastapi>=0.115.6",
   "opentelemetry-instrumentation-fastapi>=0.48b0",
   "pydantic>=2.10.4",
@@ -24,3 +25,4 @@ package = true
 [tool.uv.sources]
 dark-factory-orchestration = { workspace = true }
 dark-factory-memory = { workspace = true }
+dark-factory-persistence = { workspace = true }

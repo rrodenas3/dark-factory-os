@@ -1,5 +1,12 @@
+from __future__ import annotations
+
+import asyncio
+
+from dark_factory_worker.executor import worker_loop
+
+
 def main() -> None:
-    print("Dark Factory OS worker placeholder. Temporal workflows land after the minimal spine.")
+    asyncio.run(worker_loop())
 
 
 if __name__ == "__main__":

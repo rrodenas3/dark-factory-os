@@ -8,6 +8,16 @@ import asyncpg
 
 from .models import RunRecord, RunStatus, RunStepRecord, RunVertical, StepType
 
+_RUN_SELECT = """
+    SELECT id, workflow_key, status, vertical, briefing_json, checkpoint_json,
+           total_cost_usd, step_count, agent_id, user_id, started_at, ended_at, created_at
+"""
+
+_RUN_RETURNING = """
+    RETURNING id, workflow_key, status, vertical, briefing_json, checkpoint_json,
+              total_cost_usd, step_count, agent_id, user_id, started_at, ended_at, created_at
+"""
+
 
 class RunRepository:
     def __init__(self, pool: asyncpg.Pool) -> None:
@@ -29,8 +39,8 @@ class RunRepository:
             """
             INSERT INTO runs (id, workflow_key, status, vertical, briefing_json, agent_id, user_id)
             VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7)
-            RETURNING id, workflow_key, status, vertical, briefing_json, total_cost_usd,
-                      step_count, agent_id, user_id, started_at, ended_at, created_at
+            RETURNING id, workflow_key, status, vertical, briefing_json, checkpoint_json,
+                      total_cost_usd, step_count, agent_id, user_id, started_at, ended_at, created_at
             """,
             run_id,
             workflow_key,
@@ -45,8 +55,8 @@ class RunRepository:
     async def get_run(self, run_id: UUID) -> RunRecord | None:
         row = await self._pool.fetchrow(
             """
-            SELECT id, workflow_key, status, vertical, briefing_json, total_cost_usd,
-                   step_count, agent_id, user_id, started_at, ended_at, created_at
+            SELECT id, workflow_key, status, vertical, briefing_json, checkpoint_json,
+                   total_cost_usd, step_count, agent_id, user_id, started_at, ended_at, created_at
             FROM runs WHERE id = $1
             """,
             run_id,
@@ -70,8 +80,8 @@ class RunRepository:
                 started_at = CASE WHEN $2 = 'running' AND started_at IS NULL THEN NOW() ELSE started_at END,
                 ended_at = CASE WHEN $2 IN ('completed', 'failed', 'cancelled') THEN NOW() ELSE ended_at END
             WHERE id = $1
-            RETURNING id, workflow_key, status, vertical, briefing_json, total_cost_usd,
-                      step_count, agent_id, user_id, started_at, ended_at, created_at
+            RETURNING id, workflow_key, status, vertical, briefing_json, checkpoint_json,
+                      total_cost_usd, step_count, agent_id, user_id, started_at, ended_at, created_at
             """,
             run_id,
             status,
@@ -83,8 +93,8 @@ class RunRepository:
     async def list_runs(self, *, limit: int = 50) -> list[RunRecord]:
         rows = await self._pool.fetch(
             """
-            SELECT id, workflow_key, status, vertical, briefing_json, total_cost_usd,
-                   step_count, agent_id, user_id, started_at, ended_at, created_at
+            SELECT id, workflow_key, status, vertical, briefing_json, checkpoint_json,
+                   total_cost_usd, step_count, agent_id, user_id, started_at, ended_at, created_at
             FROM runs
             ORDER BY created_at DESC
             LIMIT $1
@@ -145,17 +155,128 @@ class RunRepository:
         )
         return [_row_to_step(row) for row in rows]
 
+    async def release_stale_running(self) -> int:
+        rows = await self._pool.fetch(
+            """
+            UPDATE runs
+            SET status = 'pending',
+                worker_id = NULL,
+                lease_expires_at = NULL
+            WHERE status = 'running'
+              AND lease_expires_at IS NOT NULL
+              AND lease_expires_at < NOW()
+            RETURNING id
+            """
+        )
+        return len(rows)
+
+    async def claim_next_pending(self, *, worker_id: str, lease_seconds: int = 120) -> RunRecord | None:
+        row = await self._pool.fetchrow(
+            """
+            UPDATE runs
+            SET status = 'running',
+                started_at = COALESCE(started_at, NOW()),
+                worker_id = $1,
+                lease_expires_at = NOW() + ($2 * INTERVAL '1 second')
+            WHERE id = (
+                SELECT id FROM runs
+                WHERE status = 'pending'
+                ORDER BY created_at ASC
+                FOR UPDATE SKIP LOCKED
+                LIMIT 1
+            )
+            RETURNING id, workflow_key, status, vertical, briefing_json, checkpoint_json,
+                      total_cost_usd, step_count, agent_id, user_id, started_at, ended_at, created_at
+            """,
+            worker_id,
+            lease_seconds,
+        )
+        return _row_to_run(row) if row else None
+
+    async def claim_run_by_id(
+        self,
+        run_id: UUID,
+        *,
+        worker_id: str,
+        lease_seconds: int = 120,
+    ) -> RunRecord | None:
+        row = await self._pool.fetchrow(
+            """
+            UPDATE runs
+            SET status = 'running',
+                started_at = COALESCE(started_at, NOW()),
+                worker_id = $2,
+                lease_expires_at = NOW() + ($3 * INTERVAL '1 second')
+            WHERE id = $1 AND status = 'pending'
+            RETURNING id, workflow_key, status, vertical, briefing_json, checkpoint_json,
+                      total_cost_usd, step_count, agent_id, user_id, started_at, ended_at, created_at
+            """,
+            run_id,
+            worker_id,
+            lease_seconds,
+        )
+        return _row_to_run(row) if row else None
+
+    async def renew_lease(self, run_id: UUID, *, worker_id: str, lease_seconds: int = 120) -> None:
+        await self._pool.execute(
+            """
+            UPDATE runs
+            SET lease_expires_at = NOW() + ($3 * INTERVAL '1 second')
+            WHERE id = $1 AND worker_id = $2 AND status = 'running'
+            """,
+            run_id,
+            worker_id,
+            lease_seconds,
+        )
+
+    async def save_checkpoint(
+        self,
+        run_id: UUID,
+        *,
+        status: RunStatus,
+        checkpoint: dict[str, Any],
+        total_cost_usd: float,
+        step_count: int,
+        persisted_trace_len: int,
+    ) -> RunRecord | None:
+        payload = {**checkpoint, "persisted_trace_len": persisted_trace_len}
+        row = await self._pool.fetchrow(
+            """
+            UPDATE runs
+            SET status = $2,
+                checkpoint_json = $3::jsonb,
+                total_cost_usd = $4,
+                step_count = $5,
+                worker_id = NULL,
+                lease_expires_at = NULL,
+                ended_at = CASE WHEN $2 IN ('completed', 'failed', 'cancelled') THEN NOW() ELSE ended_at END
+            WHERE id = $1
+            RETURNING id, workflow_key, status, vertical, briefing_json, checkpoint_json,
+                      total_cost_usd, step_count, agent_id, user_id, started_at, ended_at, created_at
+            """,
+            run_id,
+            status,
+            json.dumps(payload),
+            total_cost_usd,
+            step_count,
+        )
+        return _row_to_run(row) if row else None
+
 
 def _row_to_run(row: asyncpg.Record) -> RunRecord:
     briefing = row["briefing_json"]
     if isinstance(briefing, str):
         briefing = json.loads(briefing)
+    checkpoint = row["checkpoint_json"] if "checkpoint_json" in row.keys() else None
+    if isinstance(checkpoint, str):
+        checkpoint = json.loads(checkpoint)
     return RunRecord(
         id=row["id"],
         workflow_key=row["workflow_key"],
         status=row["status"],
         vertical=row["vertical"],
         briefing_json=briefing or {},
+        checkpoint_json=checkpoint,
         total_cost_usd=float(row["total_cost_usd"] or 0),
         step_count=int(row["step_count"] or 0),
         agent_id=row["agent_id"],

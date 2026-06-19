@@ -1,75 +1,24 @@
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
-from typing import Literal, cast
 from uuid import UUID, uuid4
 
 from dark_factory_memory import InMemoryStore, MemoryQuery
 from dark_factory_orchestration import RunState, build_graph
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
 
-RunStatus = Literal["pending", "running", "paused", "approval_required", "completed", "failed", "cancelled"]
-
-
-class HealthResponse(BaseModel):
-    status: Literal["ok"]
-    service: str
-    timestamp: datetime
-
-
-class Run(BaseModel):
-    id: UUID
-    workflow_key: str
-    status: RunStatus
-    vertical: Literal["finance", "retail", "saas"]
-    total_cost_usd: float = 0.0
-    step_count: int = 0
-
-
-class RunDetail(Run):
-    skill_name: str
-    pending_approval: bool = False
-    approval_role: str | None = None
-    policy_citations: list[str] = Field(default_factory=list)
-    tool_trace: list[dict[str, object]] = Field(default_factory=list)
-    outcome: dict[str, object] | None = None
-    error: str | None = None
-
-
-class CreateRunRequest(BaseModel):
-    briefing_json: dict[str, object] = Field(default_factory=dict)
-    vertical: Literal["finance", "retail", "saas"]
-    skill_name: str
-
-
-class ApprovalDecisionRequest(BaseModel):
-    decision: Literal["approved", "rejected"]
-    reason: str
-
-
-class MemorySearchRequest(BaseModel):
-    query: str
-    namespace: str
-    memory_type: Literal["episodic", "semantic", "procedural", "working"] | None = None
-    k: int = Field(default=5, ge=1, le=20)
-    decay_weighted: bool = True
-    min_trust: float = Field(default=0.0, ge=0.0, le=1.0)
-
-
-app = FastAPI(
-    title="Dark Factory OS Control Plane API",
-    version="0.1.0",
-    description="Governed agentic operations platform API.",
-)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+from dark_factory_api import persisted
+from dark_factory_api.schemas import (
+    ApprovalDecisionRequest,
+    CreateRunRequest,
+    HealthResponse,
+    MemorySearchRequest,
+    Run,
+    RunDetail,
+    api_status,
 )
 
 RUNS: dict[UUID, RunDetail] = {}
@@ -109,12 +58,12 @@ DEMO_RUNS: list[dict[str, object]] = [
 ]
 
 DEMO_SKILLS = [
-    {"name": "ap-exception-resolution", "vertical": "finance", "risk_tier": "medium", "eval_status": "seeded"},
-    {"name": "spend-anomaly-detection", "vertical": "finance", "risk_tier": "medium", "eval_status": "seeded"},
-    {"name": "promo-rebalance", "vertical": "retail", "risk_tier": "medium", "eval_status": "seeded"},
-    {"name": "replenishment-control", "vertical": "retail", "risk_tier": "medium", "eval_status": "seeded"},
-    {"name": "incident-triage", "vertical": "saas", "risk_tier": "medium", "eval_status": "seeded"},
-    {"name": "churn-risk-investigation", "vertical": "saas", "risk_tier": "medium", "eval_status": "seeded"},
+    {"name": "ap-exception-resolution", "vertical": "finance", "risk_tier": "medium", "eval_status": "passing"},
+    {"name": "spend-anomaly-detection", "vertical": "finance", "risk_tier": "medium", "eval_status": "passing"},
+    {"name": "promo-rebalance", "vertical": "retail", "risk_tier": "medium", "eval_status": "passing"},
+    {"name": "replenishment-control", "vertical": "retail", "risk_tier": "medium", "eval_status": "passing"},
+    {"name": "incident-triage", "vertical": "saas", "risk_tier": "medium", "eval_status": "passing"},
+    {"name": "churn-risk-investigation", "vertical": "saas", "risk_tier": "medium", "eval_status": "passing"},
 ]
 
 DEMO_APPROVALS: list[dict[str, object]] = [
@@ -140,29 +89,32 @@ DEMO_APPROVALS: list[dict[str, object]] = [
     },
 ]
 
-DEMO_MEMORY: list[dict[str, object]] = [
-    {
-        "namespace": "finance.vendor_risk",
-        "entity_key": "contoso-logistics",
-        "memory_type": "semantic",
-        "trust": 0.92,
-        "summary": "Prior amount mismatches resolved after PO correction, but payments above threshold require review.",
-    },
-    {
-        "namespace": "retail.campaign_history",
-        "entity_key": "sparkling-water-12pk",
-        "memory_type": "semantic",
-        "trust": 0.89,
-        "summary": "Margin drops often correlate with channel mix shift and supplier rebate timing.",
-    },
-    {
-        "namespace": "saas.incident_history",
-        "entity_key": "billing-api",
-        "memory_type": "episodic",
-        "trust": 0.86,
-        "summary": "Recent P1 spikes followed deploys touching invoice preview and payment retry logic.",
-    },
-]
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    if persisted.persist_runs_enabled():
+        await persisted.init_persistence()
+    try:
+        yield
+    finally:
+        if persisted.persist_runs_enabled():
+            await persisted.shutdown_persistence()
+
+
+app = FastAPI(
+    title="Dark Factory OS Control Plane API",
+    version="0.1.0",
+    description="Governed agentic operations platform API.",
+    lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -171,7 +123,9 @@ def health() -> HealthResponse:
 
 
 @app.get("/api/runs", response_model=list[Run])
-def list_runs() -> list[RunDetail]:
+async def list_runs() -> list[RunDetail]:
+    if persisted.persist_runs_enabled():
+        return await persisted.list_runs_persisted()
     return list(RUNS.values())
 
 
@@ -180,8 +134,17 @@ def list_demo_runs() -> list[dict[str, object]]:
     return DEMO_RUNS
 
 
-@app.post("/api/runs", response_model=Run, status_code=201)
-def create_run(payload: CreateRunRequest) -> Run:
+@app.post("/api/runs", response_model=Run)
+async def create_run(payload: CreateRunRequest, response: Response) -> Run:
+    if persisted.persist_runs_enabled():
+        run = await persisted.create_run_persisted(payload)
+        response.status_code = 202
+        return run
+    response.status_code = 201
+    return _create_run_memory(payload)
+
+
+def _create_run_memory(payload: CreateRunRequest) -> RunDetail:
     run_id = uuid4()
     state = RUN_GRAPH.invoke(
         RunState(
@@ -194,7 +157,7 @@ def create_run(payload: CreateRunRequest) -> Run:
     run = RunDetail(
         id=run_id,
         workflow_key=payload.skill_name,
-        status=_api_status(state.get("status", "failed")),
+        status=api_status(state.get("status", "failed")),
         vertical=payload.vertical,
         total_cost_usd=state.get("cost_usd", 0.0),
         step_count=state.get("step_count", 0),
@@ -212,7 +175,9 @@ def create_run(payload: CreateRunRequest) -> Run:
 
 
 @app.get("/api/runs/{run_id}", response_model=RunDetail)
-def get_run(run_id: UUID) -> RunDetail:
+async def get_run(run_id: UUID) -> RunDetail:
+    if persisted.persist_runs_enabled():
+        return await persisted.get_run_persisted(run_id)
     try:
         return RUNS[run_id]
     except KeyError as exc:
@@ -220,7 +185,10 @@ def get_run(run_id: UUID) -> RunDetail:
 
 
 @app.post("/api/runs/{run_id}/resume", status_code=202)
-def resume_run(run_id: UUID, payload: ApprovalDecisionRequest) -> dict[str, str]:
+async def resume_run(run_id: UUID, payload: ApprovalDecisionRequest) -> dict[str, str]:
+    if persisted.persist_runs_enabled():
+        return await persisted.resume_run_persisted(run_id, payload)
+
     if run_id not in RUNS:
         raise HTTPException(status_code=404, detail="Run not found")
     run = RUNS[run_id]
@@ -236,7 +204,7 @@ def resume_run(run_id: UUID, payload: ApprovalDecisionRequest) -> dict[str, str]
     }
     RUNS[run_id] = run.model_copy(
         update={
-            "status": _api_status(resumed.get("status", "failed")),
+            "status": api_status(resumed.get("status", "failed")),
             "total_cost_usd": resumed.get("cost_usd", run.total_cost_usd),
             "step_count": resumed.get("step_count", run.step_count),
             "pending_approval": resumed.get("pending_approval", False),
@@ -253,7 +221,9 @@ def resume_run(run_id: UUID, payload: ApprovalDecisionRequest) -> dict[str, str]
 
 
 @app.get("/api/runs/{run_id}/trace")
-def get_run_trace(run_id: UUID) -> dict[str, object]:
+async def get_run_trace(run_id: UUID) -> dict[str, object]:
+    if persisted.persist_runs_enabled():
+        return await persisted.get_trace_persisted(run_id)
     try:
         run = RUNS[run_id]
     except KeyError as exc:
@@ -273,12 +243,19 @@ def list_skills() -> list[dict[str, str]]:
 
 
 @app.get("/api/approvals")
-def list_approvals() -> list[dict[str, object]]:
+async def list_approvals() -> list[dict[str, object]]:
+    if persisted.persist_runs_enabled():
+        return await persisted.list_approvals_persisted()
     return DEMO_APPROVALS
 
 
 @app.post("/api/approvals/{approval_id}/decision", status_code=202)
-def decide_approval(approval_id: str, payload: ApprovalDecisionRequest) -> dict[str, str]:
+async def decide_approval(approval_id: str, payload: ApprovalDecisionRequest) -> dict[str, str]:
+    if persisted.persist_runs_enabled():
+        try:
+            return await persisted.decide_approval_persisted(UUID(approval_id), payload)
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail="Approval not found") from exc
     if approval_id not in {approval["id"] for approval in DEMO_APPROVALS}:
         raise HTTPException(status_code=404, detail="Approval not found")
     return {"status": "accepted", "decision": payload.decision}
@@ -340,14 +317,32 @@ def cost_summary() -> dict[str, object]:
 def eval_demo() -> dict[str, object]:
     return {
         "metrics": [
-            {"workflow": "retail_promo_rebalance", "success": 0.88, "grounding": 0.93, "approval_rate": 0.31},
-            {"workflow": "finance_ap_exception", "success": 0.91, "grounding": 0.96, "approval_rate": 0.42},
-            {"workflow": "saas_incident_triage", "success": 0.84, "grounding": 0.90, "approval_rate": 0.18},
+            {
+                "vertical": "finance",
+                "cases": 10,
+                "task_success_rate": 1.0,
+                "grounding_score": 1.0,
+                "approval_precision": 0.4,
+                "trajectory_f1": 0.776,
+                "avg_cost_usd": 0.001,
+            },
+            {
+                "vertical": "retail",
+                "cases": 5,
+                "task_success_rate": 1.0,
+                "grounding_score": 0.6,
+                "approval_precision": 0.8,
+                "trajectory_f1": 0.6,
+                "avg_cost_usd": 0.0006,
+            },
+            {
+                "vertical": "saas",
+                "cases": 5,
+                "task_success_rate": 1.0,
+                "grounding_score": 0.4,
+                "approval_precision": 0.8,
+                "trajectory_f1": 0.686,
+                "avg_cost_usd": 0.0004,
+            },
         ]
     }
-
-
-def _api_status(status: str) -> RunStatus:
-    if status in {"pending", "running", "paused", "approval_required", "completed", "failed", "cancelled"}:
-        return cast(RunStatus, status)
-    return "failed"

@@ -17,12 +17,16 @@ def database_url() -> str:
     return url
 
 
-async def get_pool() -> asyncpg.Pool:
+async def get_pool(*, apply_migrations: bool = True) -> asyncpg.Pool:
     global _pool
     if _pool is None:
         import asyncpg
 
+        from .migrate import run_migrations as _run_migrations
+
         _pool = await asyncpg.create_pool(database_url(), min_size=1, max_size=5)
+        if apply_migrations:
+            await _run_migrations(_pool)
     return _pool
 
 

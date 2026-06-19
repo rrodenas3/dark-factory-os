@@ -8,10 +8,10 @@ COPY packages/py /app/packages/py
 COPY infra/migrations /app/infra/migrations
 
 RUN pip install --no-cache-dir uv \
-    && uv sync --package dark-factory-api --no-dev --no-install-project --frozen
+    && uv sync --package dark-factory-worker --no-dev --no-install-project --frozen
 
 ENV PATH="/app/.venv/bin:$PATH"
-ENV PYTHONPATH=/app/apps/api/src
+ENV PYTHONPATH=/app/apps/worker/src
 ENV DFOS_MIGRATIONS_DIR=/app/infra/migrations
 
-CMD ["uvicorn", "dark_factory_api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "dark_factory_worker.main"]

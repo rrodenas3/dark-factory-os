@@ -1,78 +1,83 @@
 import { Nav } from "../components/nav";
-
-const traceSteps = [
-	{
-		span: "spn-1",
-		type: "plan",
-		tool: null,
-		status: "ok",
-		latency: "62ms",
-		cost: "$0.00",
-		note: "Resolved tool sequence from skill manifest",
-	},
-	{
-		span: "spn-2",
-		type: "act",
-		tool: "erp.get_invoice",
-		status: "ok",
-		latency: "94ms",
-		cost: "$0.00",
-		note: "Invoice INV-2042 retrieved",
-	},
-	{
-		span: "spn-3",
-		type: "act",
-		tool: "erp.get_purchase_order",
-		status: "ok",
-		latency: "112ms",
-		cost: "$0.00",
-		note: "PO-88219 retrieved, amount delta +$1,500",
-	},
-	{
-		span: "spn-4",
-		type: "act",
-		tool: "policy.search",
-		status: "ok",
-		latency: "188ms",
-		cost: "$0.001",
-		note: "POL-AP-12 §4.2 — amount mismatch policy cited",
-	},
-	{
-		span: "spn-5",
-		type: "act",
-		tool: "memory.search",
-		status: "ok",
-		latency: "58ms",
-		cost: "$0.00",
-		note: "Prior Contoso exception history retrieved (trust 0.92)",
-	},
-	{
-		span: "spn-6",
-		type: "verify",
-		tool: null,
-		status: "ok",
-		latency: "14ms",
-		cost: "$0.00",
-		note: "Policy cited, grounding check passed",
-	},
-	{
-		span: "spn-7",
-		type: "human_gate",
-		tool: "approvals.request",
-		status: "paused",
-		latency: "—",
-		cost: "$0.00",
-		note: "Amount mismatch > $1,000 — waiting for finance-manager",
-	},
-];
+import {
+	fetchRun,
+	fetchRunTrace,
+	fetchRuns,
+	formatCost,
+	formatVertical,
+} from "../lib/api";
 
 const statusColor: Record<string, string> = {
 	ok: "var(--green)",
 	paused: "var(--amber)",
 	failed: "var(--red)",
+	error: "var(--red)",
 };
 
-export default function TracesPage() {
+type Props = {
+	searchParams: Promise<{ runId?: string }>;
+};
+
+export default async function TracesPage({ searchParams }: Props) {
+	const { runId } = await searchParams;
+	let selectedId = runId;
+	let trace = null;
+	let run = null;
+	let live = false;
+
+	try {
+		if (!selectedId) {
+			const runs = await fetchRuns();
+			selectedId = runs[0]?.id;
+		}
+		if (selectedId) {
+			[trace, run] = await Promise.all([
+				fetchRunTrace(selectedId),
+				fetchRun(selectedId),
+			]);
+			live = true;
+		}
+	} catch {
+		selectedId = "demo-finance-ap";
+	}
+
+	const toolTrace =
+		live && trace
+			? trace.tool_trace.map((step, idx) => ({
+					span: `spn-${idx + 1}`,
+					type: String(step.step_type ?? "act"),
+					tool: step.tool_name ? String(step.tool_name) : null,
+					status:
+						step.executed === false
+							? "paused"
+							: step.success === false
+								? "failed"
+								: "ok",
+					latency: step.latency_ms ? `${step.latency_ms}ms` : "—",
+					cost: step.cost_usd ? formatCost(Number(step.cost_usd)) : "$0.00",
+					note: String(step.note ?? step.tool_name ?? "Tool step"),
+				}))
+			: [
+					{
+						span: "spn-1",
+						type: "plan",
+						tool: null,
+						status: "ok",
+						latency: "62ms",
+						cost: "$0.00",
+						note: "Resolved tool sequence from skill manifest",
+					},
+					{
+						span: "spn-7",
+						type: "human_gate",
+						tool: "approvals.request",
+						status: "paused",
+						latency: "—",
+						cost: "$0.00",
+						note: "Waiting for finance-manager approval",
+					},
+				];
+
 	return (
 		<main className="shell">
 			<header className="topbar">
@@ -82,20 +87,21 @@ export default function TracesPage() {
 						Plan → Act → Observe → Verify → Human Gate
 					</div>
 				</div>
-				<span className="badge">OTEL-ready</span>
+				<span className="badge">{live ? "Live API" : "Demo fallback"}</span>
 			</header>
 			<Nav />
 
 			<section className="card" style={{ marginTop: 24 }}>
-				<h2>run/demo-finance-ap</h2>
+				<h2>run/{selectedId}</h2>
 				<p className="muted">
-					Skill: ap-exception-resolution · Vertical: Finance · Cost: $0.29 ·
-					Steps: 7
+					{live && run
+						? `Skill: ${run.skill_name ?? run.workflow_key} · Vertical: ${formatVertical(run.vertical)} · Cost: ${formatCost(run.total_cost_usd)} · Steps: ${run.step_count}`
+						: "Skill: ap-exception-resolution · Vertical: Finance · Cost: $0.29 · Steps: 7"}
 				</p>
 			</section>
 
 			<section style={{ marginTop: 16 }}>
-				{traceSteps.map((step, idx) => (
+				{toolTrace.map((step, idx) => (
 					<div
 						key={step.span}
 						style={{
@@ -122,7 +128,7 @@ export default function TracesPage() {
 									flexShrink: 0,
 								}}
 							/>
-							{idx < traceSteps.length - 1 && (
+							{idx < toolTrace.length - 1 && (
 								<div
 									style={{
 										width: 1,
@@ -181,16 +187,18 @@ export default function TracesPage() {
 				<h3>Outcome</h3>
 				<p>
 					Status:{" "}
-					<span style={{ color: "var(--amber)" }}>approval_required</span>
+					<span style={{ color: "var(--amber)" }}>
+						{live && trace ? trace.status : "approval_required"}
+					</span>
 				</p>
-				<p className="muted">
-					Policy cited: POL-AP-12 §4.2 — amount mismatch approval threshold
-					($1,000)
-				</p>
-				<p className="muted">
-					Approver role: finance-manager · ARP generated: yes
-				</p>
-				<p className="muted">Total cost: $0.29 · p95 latency: 14.8s</p>
+				{live && trace && trace.policy_citations.length > 0 && (
+					<p className="muted">
+						Policy cited: {trace.policy_citations.join(", ")}
+					</p>
+				)}
+				{live && run?.approval_role && (
+					<p className="muted">Approver role: {run.approval_role}</p>
+				)}
 			</section>
 		</main>
 	);

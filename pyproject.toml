@@ -13,6 +13,7 @@ dependencies = [
   "dark-factory-persistence",
   "dark-factory-skills-registry",
   "dark-factory-tool-adapters",
+  "dark-factory-worker",
 ]
 
 [dependency-groups]
@@ -35,6 +36,7 @@ dark-factory-orchestration = { workspace = true }
 dark-factory-persistence = { workspace = true }
 dark-factory-skills-registry = { workspace = true }
 dark-factory-tool-adapters = { workspace = true }
+dark-factory-worker = { workspace = true }
 
 [tool.uv.workspace]
 members = ["apps/api", "apps/worker", "packages/py/*"]

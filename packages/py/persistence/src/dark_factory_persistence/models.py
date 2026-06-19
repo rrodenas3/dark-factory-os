@@ -17,6 +17,7 @@ RunStatus = Literal[
 ]
 RunVertical = Literal["finance", "retail", "saas"]
 StepType = Literal["plan", "act", "observe", "verify", "retry", "human_gate", "complete"]
+ApprovalStatus = Literal["approved", "rejected", "timeout"]
 
 
 class RunRecord(BaseModel):
@@ -25,6 +26,7 @@ class RunRecord(BaseModel):
     status: RunStatus = "pending"
     vertical: RunVertical | None = None
     briefing_json: dict[str, Any] = Field(default_factory=dict)
+    checkpoint_json: dict[str, Any] | None = None
     total_cost_usd: float = 0.0
     step_count: int = 0
     agent_id: UUID | None = None
@@ -46,4 +48,17 @@ class RunStepRecord(BaseModel):
     latency_ms: int | None = None
     cost_usd: float = 0.0
     span_json: dict[str, Any] | None = None
+    created_at: datetime | None = None
+
+
+class ApprovalRecord(BaseModel):
+    id: UUID
+    run_id: UUID
+    action_type: str
+    action_payload: dict[str, Any] = Field(default_factory=dict)
+    arp_json: dict[str, Any] | None = None
+    approver_role: str
+    decision: ApprovalStatus | None = None
+    decision_reason: str | None = None
+    decided_at: datetime | None = None
     created_at: datetime | None = None

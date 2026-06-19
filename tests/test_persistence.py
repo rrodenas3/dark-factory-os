@@ -7,9 +7,10 @@ from uuid import UUID
 import asyncpg
 import pytest
 from dark_factory_persistence import RunRepository
+from dark_factory_persistence.migrate import run_migrations
 
 ROOT = Path(__file__).resolve().parents[1]
-MIGRATION = ROOT / "infra" / "migrations" / "001_initial_schema.sql"
+MIGRATIONS_DIR = ROOT / "infra" / "migrations"
 
 
 def _database_url() -> str | None:
@@ -23,11 +24,7 @@ async def pool() -> asyncpg.Pool:
         pytest.skip("DATABASE_URL not set — skipping Postgres integration tests")
     pool = await asyncpg.create_pool(url, min_size=1, max_size=2)
     assert pool is not None
-    async with pool.acquire() as conn:
-        exists = await conn.fetchval("SELECT to_regclass('public.runs')")
-        if exists is None:
-            sql = MIGRATION.read_text(encoding="utf-8")
-            await conn.execute(sql)
+    await run_migrations(pool, directory=MIGRATIONS_DIR)
     yield pool
     await pool.close()
 
@@ -99,3 +96,21 @@ async def test_list_runs_returns_recent(repo: RunRepository) -> None:
     assert isinstance(runs, list)
     for run in runs:
         assert isinstance(run.id, UUID)
+
+
+@pytest.mark.asyncio
+async def test_save_checkpoint_persists_trace(repo: RunRepository) -> None:
+    run = await repo.create_run(workflow_key="promo-rebalance", vertical="retail")
+    updated = await repo.save_checkpoint(
+        run.id,
+        status="approval_required",
+        checkpoint={"tool_trace": [{"tool_name": "pricing.set_price_band", "executed": False}]},
+        total_cost_usd=0.12,
+        step_count=3,
+        persisted_trace_len=1,
+    )
+    assert updated is not None
+    assert updated.status == "approval_required"
+    assert updated.checkpoint_json is not None
+    assert updated.checkpoint_json["persisted_trace_len"] == 1
+    assert updated.checkpoint_json["tool_trace"][0]["tool_name"] == "pricing.set_price_band"

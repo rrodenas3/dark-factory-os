@@ -1,4 +1,11 @@
 import { Nav } from "./components/nav";
+import {
+	fetchApprovals,
+	fetchCostSummary,
+	fetchEvalDemo,
+	fetchRuns,
+	formatCost,
+} from "./lib/api";
 
 const verticals = [
 	{
@@ -18,13 +25,41 @@ const verticals = [
 	},
 ];
 
-const evalRows = [
+const demoEvalRows = [
 	["Retail promo rebalance", "0.88", "0.93", "0.31", "$0.34"],
 	["Finance AP exception", "0.91", "0.96", "0.42", "$0.29"],
 	["SaaS incident triage", "0.84", "0.90", "0.18", "$0.21"],
 ];
 
-export default function Home() {
+export default async function Home() {
+	let live = false;
+	let activeRuns = 3;
+	let pendingApprovals = 2;
+	let costToday = "$0.84";
+	let evalRows = demoEvalRows;
+
+	try {
+		const [runs, approvals, costs, evals] = await Promise.all([
+			fetchRuns(),
+			fetchApprovals(),
+			fetchCostSummary(),
+			fetchEvalDemo(),
+		]);
+		live = true;
+		activeRuns = runs.length;
+		pendingApprovals = approvals.length;
+		costToday = formatCost(costs.total_usd);
+		evalRows = evals.metrics.map((metric) => [
+			metric.workflow,
+			metric.success.toFixed(2),
+			metric.grounding.toFixed(2),
+			metric.approval_rate.toFixed(2),
+			"live",
+		]);
+	} catch {
+		live = false;
+	}
+
 	return (
 		<main className="shell">
 			<header className="topbar">
@@ -34,28 +69,30 @@ export default function Home() {
 						Governed agentic operations platform for enterprise workflows
 					</div>
 				</div>
-				<span className="badge">Spec-first foundation</span>
+				<span className="badge">{live ? "Live API" : "Demo fallback"}</span>
 			</header>
 			<Nav />
 
 			<section className="grid">
 				<article className="card">
 					<h2>Active Runs</h2>
-					<div className="metric accent">3</div>
+					<div className="metric accent">{activeRuns}</div>
 					<p className="muted">
-						Synthetic demo workflows across finance, retail, and SaaS.
+						{live
+							? "Persisted workflow executions from the control plane."
+							: "Synthetic demo workflows across finance, retail, and SaaS."}
 					</p>
 				</article>
 				<article className="card">
 					<h2>Pending Approvals</h2>
-					<div className="metric">2</div>
+					<div className="metric">{pendingApprovals}</div>
 					<p className="muted">
 						Financial and destructive actions require ARP review.
 					</p>
 				</article>
 				<article className="card">
 					<h2>Cost Today</h2>
-					<div className="metric">$0.84</div>
+					<div className="metric">{costToday}</div>
 					<p className="muted">
 						CLEAR cost model by run, vertical, and category.
 					</p>
