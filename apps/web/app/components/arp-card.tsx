@@ -41,19 +41,25 @@ export function ARPCard({
 				<div>
 					<span className="label">Confidence</span>
 					<strong>
-						{arp ? `${Math.round(arp.risk_assessment.confidence * 100)}%` : "n/a"}
+						{arp
+							? `${Math.round(arp.risk_assessment.confidence * 100)}%`
+							: "n/a"}
 					</strong>
 				</div>
 				<div>
 					<span className="label">Reversible</span>
-					<strong>{arp ? (arp.risk_assessment.reversible ? "Yes" : "No") : "n/a"}</strong>
+					<strong>
+						{arp ? (arp.risk_assessment.reversible ? "Yes" : "No") : "n/a"}
+					</strong>
 				</div>
 			</div>
-			<p className="muted">{arp?.risk_assessment.blast_radius ?? `Evidence: ${evidence}`}</p>
+			<p className="muted">
+				{arp?.risk_assessment.blast_radius ?? `Evidence: ${evidence}`}
+			</p>
 			{impact ? (
 				<p className="muted">
-					Impact: ${impact.financial_usd.toFixed(2)} · {impact.systems_affected.join(", ")} ·{" "}
-					{impact.users_affected} user(s)
+					Impact: ${impact.financial_usd.toFixed(2)} ·{" "}
+					{impact.systems_affected.join(", ")} · {impact.users_affected} user(s)
 				</p>
 			) : null}
 			{citations.length > 0 ? (
