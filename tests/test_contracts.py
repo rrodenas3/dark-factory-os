@@ -74,3 +74,19 @@ def test_openapi_matches_control_plane_manifest() -> None:
         "failed",
         "cancelled",
     ]
+
+
+def test_agent_card_matches_a2a_manifest() -> None:
+    card = json.loads((ROOT / "apps" / "api" / ".well-known" / "agent-card.json").read_text(encoding="utf-8"))
+
+    assert card["schemaVersion"] == "1.0"
+    assert card["name"] == "dark-factory-os"
+    assert card["url"] != "https://your-deployment.example.com"
+    assert set(card["protocolBindings"]) == {"json-rpc", "http"}
+
+    skill_ids = {skill["id"] for skill in card["skills"]}
+    assert skill_ids == {"retail-ops", "finance-ops", "saas-ops"}
+
+    assert card["security"] == {"scheme": "Bearer", "scopes": ["runs:write", "approvals:write", "memory:read"]}
+    assert card["governance"]["humanGateRequired"] == ["destructive", "financial"]
+    assert card["governance"]["auditTrail"] is True
