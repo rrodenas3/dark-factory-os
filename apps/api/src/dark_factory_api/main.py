@@ -499,11 +499,21 @@ def _create_ucp_checkout_proposal_memory(
 
 
 @app.get("/api/costs/summary")
-def cost_summary() -> dict[str, object]:
+async def cost_summary() -> dict[str, object]:
+    if persisted.persist_runs_enabled():
+        return await persisted.cost_summary_persisted()
+
     return {
         "total_usd": 0.84,
         "by_category": {"model_tokens": 0.55, "retrieval": 0.09, "tool_compute": 0.11, "human_review": 0.09},
         "by_vertical": {"finance": 0.29, "retail": 0.34, "saas": 0.21},
+        "clear": {
+            "cost": 0.84,
+            "latency": {"p50_seconds": 8.5, "p95_seconds": 14.8},
+            "efficiency": {"tokens_per_successful_step": 0, "successful_steps": 21},
+            "accuracy": {"task_success_rate": 0.88},
+            "reliability": {"tool_success_rate": 0.94},
+        },
     }
 
 

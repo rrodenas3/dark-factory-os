@@ -13,6 +13,7 @@ from dark_factory_persistence import (
     ApprovalRepository,
     AuditEventRecord,
     AuditRepository,
+    CostRepository,
     RunRecord,
     RunRepository,
 )
@@ -275,6 +276,10 @@ async def list_audit_events_persisted(
 ) -> list[dict[str, object]]:
     events = await AuditRepository(_require_pool()).list_events(run_id=run_id, event_type=event_type)
     return [_audit_event_to_api(event) for event in events]
+
+
+async def cost_summary_persisted() -> dict[str, object]:
+    return await CostRepository(_require_pool()).summary()
 
 
 async def get_trace_persisted(run_id: UUID) -> dict[str, object]:

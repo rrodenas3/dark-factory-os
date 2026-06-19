@@ -191,6 +191,16 @@ def test_audit_events_exposes_demo_ledger() -> None:
     assert {"actor_type", "event_type", "object_type", "payload_json", "created_at"} <= set(body[0])
 
 
+def test_cost_summary_exposes_clear_metrics() -> None:
+    response = TestClient(app).get("/api/costs/summary")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total_usd"] > 0
+    assert "tool_compute" in body["by_category"]
+    assert {"cost", "latency", "efficiency", "accuracy", "reliability"} <= set(body["clear"])
+
+
 def test_knowledge_graph_demo_returns_entities_and_edges() -> None:
     response = TestClient(app).get("/api/knowledge/graph")
     assert response.status_code == 200

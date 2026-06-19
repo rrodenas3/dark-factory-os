@@ -1,5 +1,5 @@
 import { Nav } from "../components/nav";
-import { fetchCostSummary, formatCost } from "../lib/api";
+import { type CostSummary, fetchCostSummary, formatCost } from "../lib/api";
 
 const demoCosts = [
 	["model_tokens", "$0.55"],
@@ -12,9 +12,10 @@ export default async function CostsPage() {
 	let live = false;
 	let total = "$0.84";
 	let costs = demoCosts;
+	let summary: CostSummary | null = null;
 
 	try {
-		const summary = await fetchCostSummary();
+		summary = await fetchCostSummary();
 		live = true;
 		total = formatCost(summary.total_usd);
 		costs = Object.entries(summary.by_category).map(([category, amount]) => [
@@ -47,6 +48,35 @@ export default async function CostsPage() {
 					</article>
 				))}
 			</section>
+			{summary?.clear ? (
+				<section className="grid">
+					<article className="card">
+						<h2>p95 Latency</h2>
+						<div className="metric">
+							{summary.clear.latency.p95_seconds.toFixed(3)}s
+						</div>
+						<p className="muted">Derived from persisted run step latency.</p>
+					</article>
+					<article className="card">
+						<h2>Tool Reliability</h2>
+						<div className="metric">
+							{Math.round(summary.clear.reliability.tool_success_rate * 100)}%
+						</div>
+						<p className="muted">
+							Successful persisted tool steps divided by all steps.
+						</p>
+					</article>
+					<article className="card">
+						<h2>Task Accuracy</h2>
+						<div className="metric">
+							{Math.round(summary.clear.accuracy.task_success_rate * 100)}%
+						</div>
+						<p className="muted">
+							Completed persisted runs divided by all runs.
+						</p>
+					</article>
+				</section>
+			) : null}
 		</main>
 	);
 }

@@ -97,6 +97,23 @@ export type CostSummary = {
 	total_usd: number;
 	by_category: Record<string, number>;
 	by_vertical: Record<string, number>;
+	clear?: {
+		cost: number;
+		latency: {
+			p50_seconds: number;
+			p95_seconds: number;
+		};
+		efficiency: {
+			tokens_per_successful_step: number;
+			successful_steps?: number;
+		};
+		accuracy: {
+			task_success_rate: number;
+		};
+		reliability: {
+			tool_success_rate: number;
+		};
+	};
 };
 
 export type EvalMetric = {
