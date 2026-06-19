@@ -1,7 +1,26 @@
 import { Nav } from "../components/nav";
+import { fetchEvalDemo } from "../lib/api";
 import { evalRows } from "../lib/demo-data";
 
-export default function EvalsPage() {
+export default async function EvalsPage() {
+	let live = false;
+	let rows = evalRows;
+
+	try {
+		const evals = await fetchEvalDemo();
+		live = true;
+		rows = evals.metrics.map((metric) => [
+			metric.workflow,
+			metric.success.toFixed(2),
+			metric.grounding.toFixed(2),
+			metric.approval_rate.toFixed(2),
+			"live",
+			"live",
+		]);
+	} catch {
+		live = false;
+	}
+
 	return (
 		<main className="shell">
 			<header className="topbar">
@@ -11,7 +30,9 @@ export default function EvalsPage() {
 						Cost, latency, efficiency, accuracy, and reliability
 					</div>
 				</div>
-				<span className="badge">Trajectory-aware</span>
+				<span className="badge">
+					{live ? "Live API" : "Demo fallback"} · Trajectory-aware
+				</span>
 			</header>
 			<Nav />
 			<section className="card">
@@ -27,7 +48,7 @@ export default function EvalsPage() {
 						</tr>
 					</thead>
 					<tbody>
-						{evalRows.map((row) => (
+						{rows.map((row) => (
 							<tr key={row[0]}>
 								{row.map((cell) => (
 									<td key={cell}>{cell}</td>

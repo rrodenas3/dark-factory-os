@@ -8,9 +8,9 @@ type Props = {
 };
 
 export function ApprovalActions({ approvalId }: Props) {
-	const [state, setState] = useState<"idle" | "approved" | "rejected" | "error">(
-		"idle",
-	);
+	const [state, setState] = useState<
+		"idle" | "approved" | "rejected" | "error"
+	>("idle");
 
 	async function decide(decision: "approved" | "rejected") {
 		try {
@@ -48,10 +48,18 @@ export function ApprovalActions({ approvalId }: Props) {
 
 	return (
 		<div className="actions">
-			<button className="button" type="button" onClick={() => decide("approved")}>
+			<button
+				className="button"
+				type="button"
+				onClick={() => decide("approved")}
+			>
 				Approve
 			</button>
-			<button className="button" type="button" onClick={() => decide("rejected")}>
+			<button
+				className="button"
+				type="button"
+				onClick={() => decide("rejected")}
+			>
 				Reject
 			</button>
 		</div>
