@@ -74,3 +74,18 @@ class AuditEventRecord(BaseModel):
     object_id: UUID | None = None
     payload_json: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime | None = None
+
+
+class KnowledgeEntityRecord(BaseModel):
+    id: UUID
+    entity_type: str
+    entity_key: str
+    props_json: dict[str, Any] = Field(default_factory=dict)
+
+
+class KnowledgeEdgeRecord(BaseModel):
+    id: UUID
+    source_entity_id: UUID
+    relation: str
+    target_entity_id: UUID
+    props_json: dict[str, Any] = Field(default_factory=dict)

@@ -6,7 +6,7 @@ from uuid import UUID
 
 import asyncpg
 import pytest
-from dark_factory_persistence import AuditRepository, CostRepository, RunRepository
+from dark_factory_persistence import AuditRepository, CostRepository, KnowledgeGraphRepository, RunRepository
 from dark_factory_persistence.migrate import run_migrations
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -17,7 +17,7 @@ def _database_url() -> str | None:
     return os.environ.get("DATABASE_URL")
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 async def pool() -> asyncpg.Pool:
     url = _database_url()
     if not url:
@@ -166,3 +166,35 @@ async def test_cost_repository_summarizes_steps(pool: asyncpg.Pool) -> None:
     assert summary["by_category"]["tool_compute"] >= 0.003
     assert "finance" in summary["by_vertical"]
     assert summary["clear"]["latency"]["p95_seconds"] >= 0.025
+
+
+@pytest.mark.asyncio
+async def test_knowledge_graph_repository_projects_entities_and_edges(pool: asyncpg.Pool) -> None:
+    graph = KnowledgeGraphRepository(pool)
+    source = await graph.upsert_entity(
+        entity_type="vendor",
+        entity_key="kg-test-vendor",
+        props_json={"label": "KG Test Vendor", "vertical": "finance", "risk": "medium"},
+    )
+    target = await graph.upsert_entity(
+        entity_type="policy",
+        entity_key="kg-test-policy",
+        props_json={"label": "KG Test Policy", "vertical": "finance", "risk": "control"},
+    )
+    await graph.create_edge(
+        source_entity_id=source.id,
+        relation="requires_policy_review",
+        target_entity_id=target.id,
+        props_json={"evidence": "Integration test relationship."},
+    )
+
+    projected = await graph.graph()
+
+    nodes = {node["id"]: node for node in projected["nodes"]}
+    assert nodes["kg-test-vendor"]["label"] == "KG Test Vendor"
+    assert any(
+        edge["source"] == "kg-test-vendor"
+        and edge["target"] == "kg-test-policy"
+        and edge["relation"] == "requires_policy_review"
+        for edge in projected["edges"]
+    )
