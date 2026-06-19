@@ -110,7 +110,7 @@ class RunRepository:
         step_type: StepType,
         status: str,
         tool_name: str | None = None,
-        tool_risk_class: str | None = None,
+        risk_tier: str | None = None,
         input_json: dict[str, Any] | None = None,
         output_json: dict[str, Any] | None = None,
         latency_ms: int | None = None,
@@ -121,18 +121,18 @@ class RunRepository:
         row = await self._pool.fetchrow(
             """
             INSERT INTO run_steps (
-                id, run_id, step_type, tool_name, tool_risk_class, status,
+                id, run_id, step_type, tool_name, risk_tier, status,
                 input_json, output_json, latency_ms, cost_usd, span_json
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9, $10, $11::jsonb)
-            RETURNING id, run_id, step_type, tool_name, tool_risk_class, status,
+            RETURNING id, run_id, step_type, tool_name, risk_tier, status,
                       input_json, output_json, latency_ms, cost_usd, span_json, created_at
             """,
             step_id,
             run_id,
             step_type,
             tool_name,
-            tool_risk_class,
+            risk_tier,
             status,
             json.dumps(input_json) if input_json is not None else None,
             json.dumps(output_json) if output_json is not None else None,
@@ -145,7 +145,7 @@ class RunRepository:
     async def list_steps(self, run_id: UUID) -> list[RunStepRecord]:
         rows = await self._pool.fetch(
             """
-            SELECT id, run_id, step_type, tool_name, tool_risk_class, status,
+            SELECT id, run_id, step_type, tool_name, risk_tier, status,
                    input_json, output_json, latency_ms, cost_usd, span_json, created_at
             FROM run_steps
             WHERE run_id = $1
@@ -300,7 +300,7 @@ def _row_to_step(row: asyncpg.Record) -> RunStepRecord:
         run_id=row["run_id"],
         step_type=row["step_type"],
         tool_name=row["tool_name"],
-        tool_risk_class=row["tool_risk_class"],
+        risk_tier=row["risk_tier"],
         status=row["status"],
         input_json=_json(row["input_json"]),
         output_json=_json(row["output_json"]),

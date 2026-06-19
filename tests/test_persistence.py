@@ -58,12 +58,13 @@ async def test_append_and_list_steps(repo: RunRepository) -> None:
         step_type="act",
         status="ok",
         tool_name="policy.search",
-        tool_risk_class="read_only",
+        risk_tier="read_only",
         output_json={"matches": []},
         latency_ms=42,
         cost_usd=0.001,
     )
     assert step.run_id == run.id
+    assert step.risk_tier == "read_only"
 
     steps = await repo.list_steps(run.id)
     assert len(steps) == 1

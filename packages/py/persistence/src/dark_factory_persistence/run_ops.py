@@ -19,7 +19,7 @@ async def append_new_tool_steps(
             step_type="act",
             status="ok" if step.get("success", False) else "error",
             tool_name=str(step.get("tool_name")),
-            tool_risk_class=str(step.get("risk_tier")) if step.get("risk_tier") else None,
+            risk_tier=str(step.get("risk_tier")) if step.get("risk_tier") else None,
             output_json=step,
             latency_ms=int(step.get("latency_ms", 0)),
             cost_usd=float(step.get("cost_usd", 0.0)),

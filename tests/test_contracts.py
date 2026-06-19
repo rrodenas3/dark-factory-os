@@ -134,3 +134,21 @@ def test_docker_compose_matches_local_stack_manifest() -> None:
     assert services["temporal-ui"]["image"] == "temporalio/ui:2.31"
     assert services["otel-collector"]["image"] == "otel/opentelemetry-collector-contrib:0.104.0"
     assert services["jaeger"]["image"] == "jaegertracing/all-in-one:1.59"
+
+
+def test_initial_schema_uses_manifest_risk_tier_names() -> None:
+    schema = (ROOT / "infra" / "migrations" / "001_initial_schema.sql").read_text(encoding="utf-8")
+
+    assert "risk_level" not in schema
+    assert "tool_risk_class" not in schema
+
+    required_columns = {
+        "agents": "risk_tier TEXT NOT NULL CHECK",
+        "skills": "risk_tier TEXT NOT NULL CHECK",
+        "run_steps": "risk_tier TEXT CHECK",
+        "tool_endpoints": "risk_tier TEXT NOT NULL CHECK",
+    }
+    for table_name, column_fragment in required_columns.items():
+        create_table_start = schema.index(f"CREATE TABLE {table_name}")
+        create_table_end = schema.index(");", create_table_start)
+        assert column_fragment in schema[create_table_start:create_table_end]
