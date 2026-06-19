@@ -294,16 +294,32 @@ async def _resume_run_with_decision(
 
 def _approval_to_api(approval: ApprovalRecord, run: RunRecord | None) -> dict[str, object]:
     checkpoint = (run.checkpoint_json or {}) if run else {}
-    citations = list(checkpoint.get("policy_citations", []))
+    arp = approval.arp_json or {}
+    policy_citations = arp.get("policy_citations", [])
+    citations = [
+        f"{item.get('policy_id')} §{item.get('clause_id')}"
+        for item in policy_citations
+        if isinstance(item, dict)
+    ] or list(checkpoint.get("policy_citations", []))
     tool_trace = list(checkpoint.get("tool_trace", []))
-    risk_tier = "financial"
+    risk = arp.get("risk_assessment", {})
+    risk_tier = str(risk.get("tier") or "financial") if isinstance(risk, dict) else "financial"
     for step in reversed(tool_trace):
         if step.get("tool_name") == approval.action_type:
-            risk_tier = str(step.get("risk_tier") or "financial")
+            risk_tier = str(risk_tier or step.get("risk_tier") or "financial")
             break
 
     briefing = (run.briefing_json or {}) if run else {}
-    summary = str(briefing.get("objective") or f"Approve {approval.action_type} for run {approval.run_id}")
+    proposed = arp.get("proposed_action", {})
+    summary = str(
+        proposed.get("description") if isinstance(proposed, dict) else ""
+    ) or str(briefing.get("objective") or f"Approve {approval.action_type} for run {approval.run_id}")
+    evidence_items = arp.get("evidence", [])
+    evidence = [
+        str(item.get("citation"))
+        for item in evidence_items
+        if isinstance(item, dict) and item.get("citation")
+    ] or citations
 
     return {
         "id": str(approval.id),
@@ -313,7 +329,8 @@ def _approval_to_api(approval: ApprovalRecord, run: RunRecord | None) -> dict[st
         "risk_tier": risk_tier,
         "status": "pending",
         "summary": summary,
-        "evidence": citations,
+        "evidence": evidence,
+        "arp_json": arp,
     }
 
 

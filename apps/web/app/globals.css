@@ -334,10 +334,40 @@ a {
 	min-width: 260px;
 }
 
+.arp-card {
+	display: grid;
+	gap: 12px;
+}
+
+.arp-grid {
+	display: grid;
+	gap: 10px;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.arp-grid > div {
+	background: var(--panel-2);
+	border: 1px solid var(--line);
+	border-radius: 6px;
+	padding: 10px;
+}
+
+.evidence-list {
+	color: var(--muted);
+	display: grid;
+	gap: 8px;
+	margin: 0;
+	padding-left: 18px;
+}
+
 @media (max-width: 900px) {
 	.knowledge-layout,
 	.protocol-layout,
 	.search-form {
+		grid-template-columns: 1fr;
+	}
+
+	.arp-grid {
 		grid-template-columns: 1fr;
 	}
 

@@ -1,17 +1,28 @@
-import { ApprovalActions } from "../components/approval-actions";
+import { ARPCard } from "../components/arp-card";
 import { Nav } from "../components/nav";
-import { fetchApprovals } from "../lib/api";
+import { type ActionReadinessPack, fetchApprovals } from "../lib/api";
 import { approvals as demoApprovals } from "../lib/demo-data";
+
+type ApprovalView = {
+	id: string;
+	action: string;
+	summary: string;
+	role: string;
+	evidence: string;
+	risk: string;
+	arp?: ActionReadinessPack;
+};
 
 export default async function ApprovalsPage() {
 	let live = false;
-	let items = demoApprovals.map((approval) => ({
+	let items: ApprovalView[] = demoApprovals.map((approval) => ({
 		id: approval.id,
 		action: approval.action,
 		summary: approval.summary,
 		role: approval.role,
 		evidence: approval.evidence,
 		risk: approval.risk,
+		arp: undefined,
 	}));
 
 	try {
@@ -24,6 +35,7 @@ export default async function ApprovalsPage() {
 			role: approval.approver_role,
 			evidence: approval.evidence.join(", "),
 			risk: approval.risk_tier,
+			arp: approval.arp_json,
 		}));
 	} catch {
 		// Fall back to demo seed when API is unavailable.
@@ -53,25 +65,17 @@ export default async function ApprovalsPage() {
 					</article>
 				) : (
 					items.map((approval) => (
-						<article className="card" key={approval.id}>
-							<h2>{approval.action}</h2>
-							<p>{approval.summary}</p>
-							<p className="muted">Approver: {approval.role}</p>
-							<p className="muted">Evidence: {approval.evidence}</p>
-							<span className="badge">{approval.risk}</span>
-							{live ? (
-								<ApprovalActions approvalId={approval.id} />
-							) : (
-								<div className="actions">
-									<button className="button" type="button">
-										Approve
-									</button>
-									<button className="button" type="button">
-										Reject
-									</button>
-								</div>
-							)}
-						</article>
+						<ARPCard
+							action={approval.action}
+							approvalId={approval.id}
+							arp={approval.arp}
+							evidence={approval.evidence}
+							key={approval.id}
+							live={live}
+							risk={approval.risk}
+							role={approval.role}
+							summary={approval.summary}
+						/>
 					))
 				)}
 			</section>
