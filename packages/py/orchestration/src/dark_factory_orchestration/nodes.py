@@ -5,27 +5,14 @@ from typing import Any
 from dark_factory_governance.risk_registry import RiskRegistry, ToolPolicy
 from dark_factory_tool_adapters import ToolCall, dispatch
 
+from .skill_planner import load_fallback_plan, resolve_skill_plan
 from .state import RunState
 
 MAX_STEPS = 100
 MAX_COST_USD = 5.00
 
-_SKILL_PLANS: dict[str, list[str]] = {
-    "ap-exception-resolution": ["erp.get_invoice", "erp.get_purchase_order", "policy.search", "memory.search"],
-    "spend-anomaly-detection": ["memory.search", "policy.search"],
-    "promo-rebalance": ["analytics.get_campaign_metrics", "policy.search", "memory.search", "pricing.set_price_band"],
-    "replenishment-control": ["analytics.get_campaign_metrics", "memory.search", "inventory.reorder"],
-    "incident-triage": [  # noqa: E501
-        "analytics.get_incident_metrics",
-        "telemetry.get_deployments",
-        "memory.search",
-        "incident.change_status",
-    ],
-    "churn-risk-investigation": ["analytics.get_incident_metrics", "memory.search", "policy.search"],
-}
 
-
-def planner_node(state: RunState) -> RunState:
+def planner_node(state: RunState, risk_registry: RiskRegistry) -> RunState:
     """Resolve the tool sequence from the skill manifest.
 
     Computational (deterministic) control — no LLM call.
@@ -33,7 +20,14 @@ def planner_node(state: RunState) -> RunState:
     In production this node adds context-sensitive reordering via an LLM call.
     """
     skill_name = state.get("skill_name", "ap-exception-resolution")
-    plan = _SKILL_PLANS.get(skill_name, ["policy.search", "memory.search"])
+    try:
+        plan = resolve_skill_plan(skill_name, risk_registry)
+    except KeyError:
+        plan = load_fallback_plan(risk_registry)
+        planner_error: str | None = f"Unknown skill '{skill_name}' - using safe read-only fallback plan"
+    else:
+        planner_error = None
+
     return {
         **state,
         "plan": plan,
@@ -48,7 +42,7 @@ def planner_node(state: RunState) -> RunState:
         "approval_role": None,
         "pending_tool": None,
         "outcome": None,
-        "error": None,
+        "error": planner_error,
     }
 
 
@@ -59,6 +53,9 @@ def specialist_node(state: RunState, risk_registry: RiskRegistry) -> RunState:
     Financial/destructive tools set pending_approval and stop — they must
     be unblocked by a human gate (interrupt_before in the real LangGraph graph).
     """
+    if state.get("status") in ("failed", "cancelled"):
+        return state
+
     plan: list[str] = state.get("plan", [])
     step = state.get("current_step", 0)
     tool_trace: list[dict[str, Any]] = list(state.get("tool_trace", []))

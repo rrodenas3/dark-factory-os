@@ -97,7 +97,7 @@ class RunGraph:
 
     def _compile_invoke_graph(self) -> CompiledRunGraph:
         graph = StateGraph(RunState)
-        graph.add_node("planner", _with_span("planner", planner_node))
+        graph.add_node("planner", _with_span("planner", lambda state: planner_node(state, self.registry)))
         graph.add_node("specialist", _with_span("specialist", lambda state: specialist_node(state, self.registry)))
         graph.add_node("verifier", _with_span("verifier", verifier_node))
         graph.add_node("approval_gate", _with_span("approval_gate", approval_gate_node))
