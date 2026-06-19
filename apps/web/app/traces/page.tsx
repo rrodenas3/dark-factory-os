@@ -1,11 +1,10 @@
 import { Nav } from "../components/nav";
+import { fetchRun, fetchRunTrace, fetchRuns, formatVertical } from "../lib/api";
 import {
-	fetchRun,
-	fetchRunTrace,
-	fetchRuns,
-	formatCost,
-	formatVertical,
-} from "../lib/api";
+	formatCostPrecise,
+	outcomeStatusColor,
+	traceStepsFromApi,
+} from "../lib/trace-view";
 
 const statusColor: Record<string, string> = {
 	ok: "var(--green)",
@@ -23,12 +22,13 @@ export default async function TracesPage({ searchParams }: Props) {
 	let selectedId = runId;
 	let trace = null;
 	let run = null;
+	let allRuns: Awaited<ReturnType<typeof fetchRuns>> = [];
 	let live = false;
 
 	try {
+		allRuns = await fetchRuns();
 		if (!selectedId) {
-			const runs = await fetchRuns();
-			selectedId = runs[0]?.id;
+			selectedId = allRuns[0]?.id;
 		}
 		if (selectedId) {
 			[trace, run] = await Promise.all([
@@ -43,26 +43,13 @@ export default async function TracesPage({ searchParams }: Props) {
 
 	const toolTrace =
 		live && trace
-			? trace.tool_trace.map((step, idx) => ({
-					span: `spn-${idx + 1}`,
-					type: String(step.step_type ?? "act"),
-					tool: step.tool_name ? String(step.tool_name) : null,
-					status:
-						step.executed === false
-							? "paused"
-							: step.success === false
-								? "failed"
-								: "ok",
-					latency: step.latency_ms ? `${step.latency_ms}ms` : "—",
-					cost: step.cost_usd ? formatCost(Number(step.cost_usd)) : "$0.00",
-					note: String(step.note ?? step.tool_name ?? "Tool step"),
-				}))
+			? traceStepsFromApi(trace.tool_trace)
 			: [
 					{
 						span: "spn-1",
 						type: "plan",
 						tool: null,
-						status: "ok",
+						status: "ok" as const,
 						latency: "62ms",
 						cost: "$0.00",
 						note: "Resolved tool sequence from skill manifest",
@@ -71,12 +58,14 @@ export default async function TracesPage({ searchParams }: Props) {
 						span: "spn-7",
 						type: "human_gate",
 						tool: "approvals.request",
-						status: "paused",
+						status: "paused" as const,
 						latency: "—",
 						cost: "$0.00",
 						note: "Waiting for finance-manager approval",
 					},
 				];
+
+	const outcomeStatus = live && trace ? trace.status : "approval_required";
 
 	return (
 		<main className="shell">
@@ -91,11 +80,27 @@ export default async function TracesPage({ searchParams }: Props) {
 			</header>
 			<Nav />
 
+			{live && allRuns.length > 1 && (
+				<section className="card" style={{ marginTop: 16 }}>
+					<h3>Runs</h3>
+					<p className="muted">
+						{allRuns.map((item, index) => (
+							<span key={item.id}>
+								{index > 0 ? " · " : ""}
+								<a href={`/traces?runId=${item.id}`}>
+									{item.workflow_key} ({item.status})
+								</a>
+							</span>
+						))}
+					</p>
+				</section>
+			)}
+
 			<section className="card" style={{ marginTop: 24 }}>
 				<h2>run/{selectedId}</h2>
 				<p className="muted">
 					{live && run
-						? `Skill: ${run.skill_name ?? run.workflow_key} · Vertical: ${formatVertical(run.vertical)} · Cost: ${formatCost(run.total_cost_usd)} · Steps: ${run.step_count}`
+						? `Skill: ${run.skill_name ?? run.workflow_key} · Vertical: ${formatVertical(run.vertical)} · Cost: ${formatCostPrecise(run.total_cost_usd)} · Steps: ${run.step_count}`
 						: "Skill: ap-exception-resolution · Vertical: Finance · Cost: $0.29 · Steps: 7"}
 				</p>
 			</section>
@@ -187,8 +192,8 @@ export default async function TracesPage({ searchParams }: Props) {
 				<h3>Outcome</h3>
 				<p>
 					Status:{" "}
-					<span style={{ color: "var(--amber)" }}>
-						{live && trace ? trace.status : "approval_required"}
+					<span style={{ color: outcomeStatusColor(outcomeStatus) }}>
+						{outcomeStatus}
 					</span>
 				</p>
 				{live && trace && trace.policy_citations.length > 0 && (
@@ -196,8 +201,15 @@ export default async function TracesPage({ searchParams }: Props) {
 						Policy cited: {trace.policy_citations.join(", ")}
 					</p>
 				)}
-				{live && run?.approval_role && (
-					<p className="muted">Approver role: {run.approval_role}</p>
+				{live &&
+					run?.approval_role &&
+					outcomeStatus === "approval_required" && (
+						<p className="muted">Approver role: {run.approval_role}</p>
+					)}
+				{live && trace?.outcome?.approval_decision != null && (
+					<p className="muted">
+						Approval decision: {String(trace.outcome.approval_decision)}
+					</p>
 				)}
 			</section>
 		</main>

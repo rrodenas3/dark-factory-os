@@ -94,17 +94,6 @@ export async function fetchEvalDemo(): Promise<EvalDemo> {
 	return fetchJson<EvalDemo>("/api/evals/demo");
 }
 
-export async function decideApproval(
-	approvalId: string,
-	decision: "approved" | "rejected",
-	reason: string,
-): Promise<void> {
-	await fetchJson(`/api/approvals/${approvalId}/decision`, {
-		method: "POST",
-		body: JSON.stringify({ decision, reason }),
-	});
-}
-
 export function formatStatus(status: string): string {
 	return status
 		.split("_")

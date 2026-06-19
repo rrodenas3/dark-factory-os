@@ -1,4 +1,5 @@
 import { Nav } from "./components/nav";
+import { StartPilotRun } from "./components/start-pilot-run";
 import {
 	fetchApprovals,
 	fetchCostSummary,
@@ -31,6 +32,12 @@ const demoEvalRows = [
 	["SaaS incident triage", "0.84", "0.90", "0.18", "$0.21"],
 ];
 
+const evalCostByWorkflow: Record<string, string> = {
+	retail_promo_rebalance: "$0.34",
+	finance_ap_exception: "$0.29",
+	saas_incident_triage: "$0.21",
+};
+
 export default async function Home() {
 	let live = false;
 	let activeRuns = 3;
@@ -50,11 +57,11 @@ export default async function Home() {
 		pendingApprovals = approvals.length;
 		costToday = formatCost(costs.total_usd);
 		evalRows = evals.metrics.map((metric) => [
-			metric.workflow,
+			metric.workflow.replaceAll("_", " "),
 			metric.success.toFixed(2),
 			metric.grounding.toFixed(2),
 			metric.approval_rate.toFixed(2),
-			"live",
+			evalCostByWorkflow[metric.workflow] ?? "—",
 		]);
 	} catch {
 		live = false;
@@ -79,7 +86,9 @@ export default async function Home() {
 					<div className="metric accent">{activeRuns}</div>
 					<p className="muted">
 						{live
-							? "Persisted workflow executions from the control plane."
+							? activeRuns === 0
+								? "No persisted runs yet — launch a pilot below."
+								: "Persisted workflow executions from the control plane."
 							: "Synthetic demo workflows across finance, retail, and SaaS."}
 					</p>
 				</article>
@@ -98,6 +107,8 @@ export default async function Home() {
 					</p>
 				</article>
 			</section>
+
+			{live && <StartPilotRun />}
 
 			<section className="grid">
 				{verticals.map((vertical) => (
@@ -125,7 +136,7 @@ export default async function Home() {
 						{evalRows.map((row) => (
 							<tr key={row[0]}>
 								{row.map((cell) => (
-									<td key={cell}>{cell}</td>
+									<td key={`${row[0]}-${cell}`}>{cell}</td>
 								))}
 							</tr>
 						))}

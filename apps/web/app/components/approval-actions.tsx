@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { decideApproval } from "../lib/api";
+import { decideApproval } from "../lib/api-client";
 
 type Props = {
 	approvalId: string;
