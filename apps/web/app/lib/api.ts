@@ -116,6 +116,33 @@ export type KnowledgeGraph = {
 	}>;
 };
 
+export type ToolEndpoint = {
+	name: string;
+	server_name: string;
+	protocol: string;
+	risk_tier: "read_only" | "financial" | "destructive" | string;
+	input_schema: {
+		type: string;
+		properties: Record<string, Record<string, unknown>>;
+		required: string[];
+	};
+	output_schema: {
+		type: string;
+		properties: Record<string, Record<string, unknown>>;
+		required: string[];
+	};
+	description: string;
+	approver_role: string | null;
+};
+
+export type ToolCatalog = {
+	protocol: string;
+	protocol_version: string;
+	transport: string;
+	endpoint_count: number;
+	endpoints: ToolEndpoint[];
+};
+
 export async function fetchRuns(): Promise<ApiRun[]> {
 	return fetchJson<ApiRun[]>("/api/runs");
 }
@@ -146,6 +173,10 @@ export async function fetchMemoryDemo(): Promise<MemoryDemoItem[]> {
 
 export async function fetchKnowledgeGraph(): Promise<KnowledgeGraph> {
 	return fetchJson<KnowledgeGraph>("/api/knowledge/graph");
+}
+
+export async function fetchToolCatalog(): Promise<ToolCatalog> {
+	return fetchJson<ToolCatalog>("/api/tools/catalog");
 }
 
 export function formatStatus(status: string): string {

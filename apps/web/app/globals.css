@@ -266,8 +266,77 @@ a {
 	height: 100%;
 }
 
+.protocol-layout {
+	display: grid;
+	gap: 16px;
+	grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+	margin-top: 16px;
+}
+
+.risk-stack {
+	display: grid;
+	gap: 10px;
+}
+
+.risk-row {
+	align-items: center;
+	background: var(--panel-2);
+	border: 1px solid var(--line);
+	border-radius: 6px;
+	display: flex;
+	justify-content: space-between;
+	padding: 12px;
+	text-transform: capitalize;
+}
+
+.server-grid {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+
+.server-pill,
+.risk-badge {
+	border: 1px solid var(--line);
+	border-radius: 999px;
+	display: inline-block;
+	font-size: 12px;
+	padding: 6px 10px;
+	white-space: nowrap;
+}
+
+.server-pill {
+	background: var(--panel-2);
+	color: var(--muted);
+}
+
+.risk-badge {
+	text-transform: capitalize;
+}
+
+.risk-read {
+	color: var(--green);
+}
+
+.risk-financial {
+	color: var(--amber);
+}
+
+.risk-destructive {
+	color: var(--red);
+}
+
+.protocol-table td:first-child {
+	min-width: 190px;
+}
+
+.protocol-table td:nth-child(6) {
+	min-width: 260px;
+}
+
 @media (max-width: 900px) {
 	.knowledge-layout,
+	.protocol-layout,
 	.search-form {
 		grid-template-columns: 1fr;
 	}
