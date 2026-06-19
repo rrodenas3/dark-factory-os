@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Dark Factory OS control-plane API"
 requires-python = ">=3.12"
 dependencies = [
+  "dark-factory-evals",
   "dark-factory-memory",
   "dark-factory-orchestration",
   "dark-factory-persistence",
@@ -23,6 +24,7 @@ dev = [
 package = true
 
 [tool.uv.sources]
+dark-factory-evals = { workspace = true }
 dark-factory-orchestration = { workspace = true }
 dark-factory-memory = { workspace = true }
 dark-factory-persistence = { workspace = true }

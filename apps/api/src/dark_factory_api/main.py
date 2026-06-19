@@ -15,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from dark_factory_api import persisted
+from dark_factory_api.evals import router as evals_router
 from dark_factory_api.schemas import (
     ApprovalDecisionRequest,
     CreateRunRequest,
@@ -121,6 +122,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(evals_router)
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -435,36 +438,3 @@ def cost_summary() -> dict[str, object]:
     }
 
 
-@app.get("/api/evals/demo")
-def eval_demo() -> dict[str, object]:
-    return {
-        "metrics": [
-            {
-                "vertical": "finance",
-                "cases": 10,
-                "task_success_rate": 1.0,
-                "grounding_score": 1.0,
-                "approval_precision": 0.4,
-                "trajectory_f1": 0.776,
-                "avg_cost_usd": 0.001,
-            },
-            {
-                "vertical": "retail",
-                "cases": 5,
-                "task_success_rate": 1.0,
-                "grounding_score": 0.6,
-                "approval_precision": 0.8,
-                "trajectory_f1": 0.6,
-                "avg_cost_usd": 0.0006,
-            },
-            {
-                "vertical": "saas",
-                "cases": 5,
-                "task_success_rate": 1.0,
-                "grounding_score": 0.4,
-                "approval_precision": 0.8,
-                "trajectory_f1": 0.686,
-                "avg_cost_usd": 0.0004,
-            },
-        ]
-    }

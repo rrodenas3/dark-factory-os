@@ -250,6 +250,7 @@ name = "dark-factory-api"
 version = "0.1.0"
 source = { editable = "apps/api" }
 dependencies = [
+    { name = "dark-factory-evals" },
     { name = "dark-factory-memory" },
     { name = "dark-factory-orchestration" },
     { name = "dark-factory-persistence" },
@@ -267,6 +268,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "dark-factory-evals", editable = "packages/py/evals" },
     { name = "dark-factory-memory", editable = "packages/py/memory" },
     { name = "dark-factory-orchestration", editable = "packages/py/orchestration" },
     { name = "dark-factory-persistence", editable = "packages/py/persistence" },
