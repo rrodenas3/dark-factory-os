@@ -166,6 +166,22 @@ def test_memory_demo_uses_persisted_backend_when_enabled(monkeypatch: MonkeyPatc
     assert response.json()[0]["namespace"] == "postgres.seed"
 
 
+def test_tools_catalog_exposes_mcp_registry() -> None:
+    response = TestClient(app).get("/api/tools/catalog")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["protocol"] == "mcp"
+    assert body["protocol_version"] == "2026-07-28"
+    assert body["endpoint_count"] == len(body["endpoints"])
+
+    endpoints = {endpoint["name"]: endpoint for endpoint in body["endpoints"]}
+    assert endpoints["erp.get_invoice"]["server_name"] == "erp-mock"
+    assert endpoints["erp.get_invoice"]["input_schema"]["required"] == ["invoice_id"]
+    assert endpoints["pricing.set_price_band"]["risk_tier"] == "financial"
+    assert endpoints["pricing.set_price_band"]["approver_role"] == "commercial-manager"
+
+
 def test_knowledge_graph_demo_returns_entities_and_edges() -> None:
     response = TestClient(app).get("/api/knowledge/graph")
     assert response.status_code == 200

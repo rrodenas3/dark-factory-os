@@ -9,6 +9,7 @@ from uuid import UUID, uuid4
 
 from dark_factory_memory import InMemoryStore, MemoryQuery
 from dark_factory_orchestration import RunState, build_graph
+from dark_factory_tool_adapters import MCP_PROTOCOL_VERSION, tool_endpoints
 from dark_factory_tool_adapters.ucp_simulator import propose_checkout
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -255,6 +256,18 @@ async def get_run_trace(run_id: UUID) -> dict[str, object]:
 @app.get("/api/skills")
 def list_skills() -> list[dict[str, str]]:
     return DEMO_SKILLS
+
+
+@app.get("/api/tools/catalog")
+def tools_catalog() -> dict[str, object]:
+    endpoints = [endpoint.model_dump(mode="json") for endpoint in tool_endpoints()]
+    return {
+        "protocol": "mcp",
+        "protocol_version": MCP_PROTOCOL_VERSION,
+        "transport": "streamable-http-stateless",
+        "endpoint_count": len(endpoints),
+        "endpoints": endpoints,
+    }
 
 
 @app.get("/api/approvals")
