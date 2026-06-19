@@ -1,3 +1,4 @@
+import { LiveEventRail } from "../components/live-event-rail";
 import { Nav } from "../components/nav";
 import {
 	type UserContext,
@@ -225,6 +226,36 @@ export default async function WorkbenchPage() {
 								{permission}
 							</span>
 						))}
+					</div>
+				</section>
+			</section>
+
+			<section className="workbench-layout">
+				<LiveEventRail />
+				<section className="card">
+					<div className="section-heading">
+						<div>
+							<h2>Autonomy Boundary</h2>
+							<p className="muted">
+								Agents can observe and propose continuously, while financial and
+								destructive actions stay behind human gates.
+							</p>
+						</div>
+						<span className="badge">proposal-first</span>
+					</div>
+					<div className="risk-stack">
+						<div className="risk-row">
+							<span>Read-only tools</span>
+							<strong className="risk-read">auto</strong>
+						</div>
+						<div className="risk-row">
+							<span>Financial tools</span>
+							<strong className="risk-financial">approval</strong>
+						</div>
+						<div className="risk-row">
+							<span>Destructive tools</span>
+							<strong className="risk-destructive">human gate</strong>
+						</div>
 					</div>
 				</section>
 			</section>
