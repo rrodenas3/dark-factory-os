@@ -5,7 +5,7 @@ from uuid import UUID
 
 from dark_factory_governance import build_action_readiness_pack
 
-from dark_factory_persistence import ApprovalRepository, RunRecord, RunRepository
+from dark_factory_persistence import ApprovalRepository, AuditRepository, RunRecord, RunRepository
 
 
 async def append_new_tool_steps(
@@ -51,7 +51,7 @@ async def persist_run_result(
     if status == "approval_required" and state.get("pending_tool"):
         existing = await approvals.list_pending_for_run(run.id)
         if not existing:
-            await approvals.create(
+            approval = await approvals.create(
                 run_id=run.id,
                 action_type=str(state["pending_tool"]),
                 action_payload={
@@ -66,6 +66,18 @@ async def persist_run_result(
                     approver_role=str(state.get("approval_role") or "operator"),
                     state=state,
                 ),
+            )
+            await AuditRepository(runs.pool).record(
+                actor_type="agent",
+                event_type="approval.requested",
+                object_type="approval",
+                object_id=approval.id,
+                payload_json={
+                    "run_id": str(run.id),
+                    "action_type": approval.action_type,
+                    "approver_role": approval.approver_role,
+                    "risk_tier": state.get("tool_trace", [{}])[-1].get("risk_tier"),
+                },
             )
 
 

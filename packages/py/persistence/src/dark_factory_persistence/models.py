@@ -18,6 +18,7 @@ RunStatus = Literal[
 RunVertical = Literal["finance", "retail", "saas"]
 StepType = Literal["plan", "act", "observe", "verify", "retry", "human_gate", "complete"]
 ApprovalStatus = Literal["approved", "rejected", "timeout"]
+ActorType = Literal["user", "agent", "system"]
 
 
 class RunRecord(BaseModel):
@@ -61,4 +62,15 @@ class ApprovalRecord(BaseModel):
     decision: ApprovalStatus | None = None
     decision_reason: str | None = None
     decided_at: datetime | None = None
+    created_at: datetime | None = None
+
+
+class AuditEventRecord(BaseModel):
+    id: UUID
+    actor_type: ActorType
+    actor_id: UUID | None = None
+    event_type: str
+    object_type: str | None = None
+    object_id: UUID | None = None
+    payload_json: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime | None = None

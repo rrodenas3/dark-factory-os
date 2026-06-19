@@ -97,6 +97,29 @@ DEMO_APPROVALS: list[dict[str, object]] = [
     },
 ]
 
+DEMO_AUDIT_EVENTS: list[dict[str, object]] = [
+    {
+        "id": "audit-demo-001",
+        "actor_type": "agent",
+        "actor_id": None,
+        "event_type": "approval.requested",
+        "object_type": "approval",
+        "object_id": "apr-fin-001",
+        "payload_json": {"run_id": "demo-finance-ap", "action_type": "erp.post_payment"},
+        "created_at": "2026-06-19T00:00:00Z",
+    },
+    {
+        "id": "audit-demo-002",
+        "actor_type": "user",
+        "actor_id": None,
+        "event_type": "run.created",
+        "object_type": "run",
+        "object_id": "demo-retail-promo",
+        "payload_json": {"workflow_key": "promo-rebalance", "vertical": "retail"},
+        "created_at": "2026-06-19T00:01:00Z",
+    },
+]
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -286,7 +309,33 @@ async def decide_approval(approval_id: str, payload: ApprovalDecisionRequest) ->
             raise HTTPException(status_code=404, detail="Approval not found") from exc
     if approval_id not in {approval["id"] for approval in DEMO_APPROVALS}:
         raise HTTPException(status_code=404, detail="Approval not found")
+    DEMO_AUDIT_EVENTS.insert(
+        0,
+        {
+            "id": f"audit-{uuid4().hex[:8]}",
+            "actor_type": "user",
+            "actor_id": None,
+            "event_type": "approval.decided",
+            "object_type": "approval",
+            "object_id": approval_id,
+            "payload_json": {"decision": payload.decision, "reason": payload.reason},
+            "created_at": datetime.now(UTC).isoformat(),
+        },
+    )
     return {"status": "accepted", "decision": payload.decision}
+
+
+@app.get("/api/audit/events")
+async def list_audit_events(run_id: UUID | None = None, event_type: str | None = None) -> list[dict[str, object]]:
+    if persisted.persist_runs_enabled():
+        return await persisted.list_audit_events_persisted(run_id=run_id, event_type=event_type)
+
+    items = DEMO_AUDIT_EVENTS
+    if run_id is not None:
+        items = [item for item in items if item.get("object_id") == str(run_id)]
+    if event_type is not None:
+        items = [item for item in items if item.get("event_type") == event_type]
+    return items
 
 
 @app.post("/api/memory/search")

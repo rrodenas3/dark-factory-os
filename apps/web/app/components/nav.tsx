@@ -8,6 +8,7 @@ const links = [
 	["Costs", "/costs"],
 	["Knowledge", "/knowledge"],
 	["Protocols", "/protocols"],
+	["Audit", "/audit"],
 	["Retail Promo ↗", "/retail/promo-confirm"],
 ];
 

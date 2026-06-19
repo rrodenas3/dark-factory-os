@@ -209,6 +209,17 @@ export type ToolCatalog = {
 	endpoints: ToolEndpoint[];
 };
 
+export type AuditEvent = {
+	id: string;
+	actor_type: "user" | "agent" | "system" | string;
+	actor_id: string | null;
+	event_type: string;
+	object_type: string | null;
+	object_id: string | null;
+	payload_json: Record<string, unknown>;
+	created_at: string | null;
+};
+
 export async function fetchRuns(): Promise<ApiRun[]> {
 	return fetchJson<ApiRun[]>("/api/runs");
 }
@@ -247,6 +258,10 @@ export async function fetchKnowledgeGraph(): Promise<KnowledgeGraph> {
 
 export async function fetchToolCatalog(): Promise<ToolCatalog> {
 	return fetchJson<ToolCatalog>("/api/tools/catalog");
+}
+
+export async function fetchAuditEvents(): Promise<AuditEvent[]> {
+	return fetchJson<AuditEvent[]>("/api/audit/events");
 }
 
 export function formatStatus(status: string): string {

@@ -6,7 +6,7 @@ from uuid import UUID
 
 import asyncpg
 import pytest
-from dark_factory_persistence import RunRepository
+from dark_factory_persistence import AuditRepository, RunRepository
 from dark_factory_persistence.migrate import run_migrations
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -115,3 +115,23 @@ async def test_save_checkpoint_persists_trace(repo: RunRepository) -> None:
     assert updated.checkpoint_json is not None
     assert updated.checkpoint_json["persisted_trace_len"] == 1
     assert updated.checkpoint_json["tool_trace"][0]["tool_name"] == "pricing.set_price_band"
+
+
+@pytest.mark.asyncio
+async def test_audit_repository_records_and_filters_events(pool: asyncpg.Pool) -> None:
+    runs = RunRepository(pool)
+    audit = AuditRepository(pool)
+    run = await runs.create_run(workflow_key="promo-rebalance", vertical="retail")
+
+    created = await audit.record(
+        actor_type="user",
+        event_type="run.created",
+        object_type="run",
+        object_id=run.id,
+        payload_json={"workflow_key": run.workflow_key},
+    )
+
+    assert created.event_type == "run.created"
+    events = await audit.list_events(run_id=run.id, event_type="run.created")
+    assert any(event.id == created.id for event in events)
+    assert events[0].payload_json["workflow_key"] == "promo-rebalance"
