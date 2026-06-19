@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 from dark_factory_governance.risk_registry import load_risk_registry
-from dark_factory_orchestration import RunGraph, RunState, build_graph
+from dark_factory_orchestration import RunGraph, RunState, build_checkpointer, build_graph
 from dark_factory_orchestration.skill_planner import resolve_skill_plan
 from langgraph.graph.state import CompiledStateGraph
 
@@ -44,6 +44,19 @@ def test_finance_ap_run_reaches_terminal_state(graph: RunGraph) -> None:
 
 def test_run_graph_uses_compiled_langgraph_runtime(graph: RunGraph) -> None:
     assert isinstance(graph.compiled_graph, CompiledStateGraph)
+    assert graph.checkpoint_mode == "memory"
+
+
+def test_postgres_checkpoint_mode_requires_database_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    with pytest.raises(ValueError, match="DATABASE_URL is required"):
+        build_checkpointer(mode="postgres")
+
+
+def test_checkpoint_mode_rejects_unknown_value(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DFOS_LANGGRAPH_CHECKPOINTS", "sqlite")
+    with pytest.raises(ValueError, match="memory.*postgres"):
+        build_checkpointer()
 
 
 def test_finance_ap_run_executes_tools(graph: RunGraph) -> None:

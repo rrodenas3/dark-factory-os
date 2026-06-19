@@ -74,6 +74,7 @@ services:
     environment:
       DATABASE_URL: postgresql://dfos:dfos@postgres:5432/dfos
       DFOS_PERSIST_RUNS: "true"
+      DFOS_LANGGRAPH_CHECKPOINTS: postgres
       DFOS_MIGRATIONS_DIR: /app/infra/migrations
     ports:
       - "8000:8000"
@@ -95,6 +96,7 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: postgresql://dfos:dfos@postgres:5432/dfos
+      DFOS_LANGGRAPH_CHECKPOINTS: postgres
       DFOS_MIGRATIONS_DIR: /app/infra/migrations
     depends_on:
       postgres:

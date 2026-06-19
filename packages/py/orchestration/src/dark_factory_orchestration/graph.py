@@ -6,10 +6,10 @@ from typing import Any, Literal, cast
 
 from dark_factory_governance.risk_registry import RiskRegistry, load_risk_registry
 from langchain_core.runnables import Runnable, RunnableConfig, RunnableLambda
-from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
+from .checkpointing import CheckpointMode, build_checkpointer
 from .nodes import (
     approval_gate_node,
     execute_pending_gated_tool,
@@ -50,15 +50,34 @@ class RunGraph:
     internals use a real LangGraph StateGraph.
     """
 
-    def __init__(self, risk_registry: RiskRegistry | None = None) -> None:
+    def __init__(
+        self,
+        risk_registry: RiskRegistry | None = None,
+        *,
+        checkpoint_mode: CheckpointMode | None = None,
+        database_url: str | None = None,
+        setup_checkpointer: bool = True,
+    ) -> None:
         self.registry = _load_registry(risk_registry)
-        self._checkpointer = MemorySaver()
+        self._checkpointer_bundle = build_checkpointer(
+            mode=checkpoint_mode,
+            database_url=database_url,
+            setup=setup_checkpointer,
+        )
+        self._checkpointer = self._checkpointer_bundle.saver
         self._invoke_graph = self._compile_invoke_graph()
         self._resume_graph = self._compile_resume_graph()
 
     @property
+    def checkpoint_mode(self) -> CheckpointMode:
+        return self._checkpointer_bundle.mode
+
+    @property
     def compiled_graph(self) -> CompiledRunGraph:
         return self._invoke_graph
+
+    def close(self) -> None:
+        self._checkpointer_bundle.close()
 
     def invoke(self, initial_state: RunState) -> RunState:
         with run_span(initial_state) as root:
@@ -172,6 +191,17 @@ def _route_after_verifier(state: RunState) -> VerifierRoute:
     return "__end__"
 
 
-def build_graph(registry: RiskRegistry | None = None) -> RunGraph:
+def build_graph(
+    registry: RiskRegistry | None = None,
+    *,
+    checkpoint_mode: CheckpointMode | None = None,
+    database_url: str | None = None,
+    setup_checkpointer: bool = True,
+) -> RunGraph:
     """Construct a LangGraph-backed RunGraph ready for invoke()."""
-    return RunGraph(risk_registry=registry)
+    return RunGraph(
+        risk_registry=registry,
+        checkpoint_mode=checkpoint_mode,
+        database_url=database_url,
+        setup_checkpointer=setup_checkpointer,
+    )

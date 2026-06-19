@@ -96,7 +96,7 @@ The memory layer (`packages/py/memory`) implements SSGM-inspired governance acro
 
 **Decay scoring:** `score = similarity × exp(−λ × age_hours)` where `λ = 0.01` (half-life ≈ 69 hrs). Stale context automatically ranks lower without any manual pruning.
 
-**Production path:** swap `InMemoryStore` → `memory_items` Postgres table with `pgvector(1536)` + `pg_trgm` for hybrid retrieval. Optional graph sidecar (`kg_entities` / `kg_edges` tables) models vendor, invoice, policy, campaign, and incident relationships for explainable cross-entity retrieval.
+**Production path:** set `DFOS_PERSIST_RUNS=true` to use the `memory_items` Postgres table with `pgvector(1536)` and governed read/write gates. Docker Compose also opts the API and worker into LangGraph's native Postgres checkpointer with `DFOS_LANGGRAPH_CHECKPOINTS=postgres`, while local tests default to deterministic in-memory checkpoints. Optional graph sidecar (`kg_entities` / `kg_edges` tables) models vendor, invoice, policy, campaign, and incident relationships for explainable cross-entity retrieval.
 
 ---
 
