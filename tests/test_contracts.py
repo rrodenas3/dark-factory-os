@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from dark_factory_artifacts.validate import validate_all_schemas
@@ -23,3 +24,18 @@ def test_all_seed_skills_reference_known_tools() -> None:
     registry = load_risk_registry(ROOT / "packages/py/governance/risk_registry.yaml")
     skills = discover_skills(ROOT / "skills", registry)
     assert len(skills) == 6
+
+
+def test_golden_datasets_reference_known_skills_and_tools() -> None:
+    registry = load_risk_registry(ROOT / "packages/py/governance/risk_registry.yaml")
+    skills = discover_skills(ROOT / "skills", registry)
+    skill_names = {skill.manifest.name for skill in skills}
+
+    for dataset_path in sorted((ROOT / "evals" / "datasets").glob("*_goldens.jsonl")):
+        for line_number, line in enumerate(dataset_path.read_text(encoding="utf-8").splitlines(), start=1):
+            record = json.loads(line)
+            expected_skill = record["expected_skill"]
+            assert expected_skill in skill_names, f"{dataset_path.name}:{line_number} unknown skill {expected_skill}"
+
+            for tool_name in record["expected_tools_sequence"]:
+                registry.require_tool(tool_name)
