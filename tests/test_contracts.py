@@ -90,3 +90,47 @@ def test_agent_card_matches_a2a_manifest() -> None:
     assert card["security"] == {"scheme": "Bearer", "scopes": ["runs:write", "approvals:write", "memory:read"]}
     assert card["governance"]["humanGateRequired"] == ["destructive", "financial"]
     assert card["governance"]["auditTrail"] is True
+    assert card["governance"]["riskTiers"] == ["read_only", "financial", "destructive"]
+
+
+def test_env_example_contains_required_local_stack_variables() -> None:
+    env_lines = (ROOT / ".env.example").read_text(encoding="utf-8").splitlines()
+    env_keys = {line.split("=", 1)[0] for line in env_lines if line and not line.startswith("#")}
+
+    required_keys = {
+        "DATABASE_URL",
+        "ANTHROPIC_API_KEY",
+        "OPENAI_API_KEY",
+        "REDIS_URL",
+        "TEMPORAL_HOST",
+        "OTEL_EXPORTER_OTLP_ENDPOINT",
+        "LANGSMITH_API_KEY",
+        "JWT_SECRET",
+        "NEXT_PUBLIC_API_URL",
+    }
+    assert required_keys <= env_keys
+
+
+def test_docker_compose_matches_local_stack_manifest() -> None:
+    compose = yaml.safe_load((ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
+    services = compose["services"]
+
+    required_services = {
+        "postgres",
+        "redis",
+        "temporal",
+        "temporal-ui",
+        "api",
+        "worker",
+        "web",
+        "otel-collector",
+        "jaeger",
+    }
+    assert required_services <= set(services)
+
+    assert services["postgres"]["image"] == "pgvector/pgvector:pg16"
+    assert services["redis"]["image"] == "redis:7-alpine"
+    assert services["temporal"]["image"] == "temporalio/auto-setup:1.24"
+    assert services["temporal-ui"]["image"] == "temporalio/ui:2.31"
+    assert services["otel-collector"]["image"] == "otel/opentelemetry-collector-contrib:0.104.0"
+    assert services["jaeger"]["image"] == "jaegertracing/all-in-one:1.59"
