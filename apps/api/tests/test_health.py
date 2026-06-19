@@ -205,6 +205,17 @@ def test_audit_events_exposes_demo_ledger() -> None:
     assert {"actor_type", "event_type", "object_type", "payload_json", "created_at"} <= set(body[0])
 
 
+def test_events_stream_exposes_audit_events_and_heartbeat() -> None:
+    response = TestClient(app).get("/api/events?once=true")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/event-stream")
+    body = response.text
+    assert "event: approval.requested" in body
+    assert "event: control_plane.heartbeat" in body
+    assert '"source": "api-events"' in body
+
+
 def test_cost_summary_exposes_clear_metrics() -> None:
     response = TestClient(app).get("/api/costs/summary")
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -13,7 +14,7 @@ from dark_factory_tool_adapters import MCP_PROTOCOL_VERSION, tool_endpoints
 from dark_factory_tool_adapters.ucp_simulator import propose_checkout
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from dark_factory_api import persisted
 from dark_factory_api.evals import router as evals_router
@@ -395,6 +396,48 @@ async def list_audit_events(run_id: UUID | None = None, event_type: str | None =
     if event_type is not None:
         items = [item for item in items if item.get("event_type") == event_type]
     return items
+
+
+def _sse_event(event: str, data: dict[str, object]) -> str:
+    return f"event: {event}\ndata: {json.dumps(data, default=str)}\n\n"
+
+
+@app.get("/api/events")
+async def stream_events(run_id: UUID | None = None, once: bool = False) -> StreamingResponse:
+    async def event_generator() -> AsyncIterator[str]:
+        events = await list_audit_events(run_id=run_id)
+        for item in events[:10]:
+            yield _sse_event(str(item["event_type"]), item)
+        yield _sse_event(
+            "control_plane.heartbeat",
+            {
+                "id": f"heartbeat-{uuid4().hex[:8]}",
+                "actor_type": "system",
+                "event_type": "control_plane.heartbeat",
+                "payload_json": {"live": True, "source": "api-events"},
+                "created_at": datetime.now(UTC).isoformat(),
+            },
+        )
+        if once:
+            return
+        while True:
+            await asyncio.sleep(15)
+            yield _sse_event(
+                "control_plane.heartbeat",
+                {
+                    "id": f"heartbeat-{uuid4().hex[:8]}",
+                    "actor_type": "system",
+                    "event_type": "control_plane.heartbeat",
+                    "payload_json": {"live": True, "source": "api-events"},
+                    "created_at": datetime.now(UTC).isoformat(),
+                },
+            )
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.post("/api/memory/search")
