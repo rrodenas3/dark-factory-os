@@ -316,6 +316,56 @@ def memory_demo() -> list[dict[str, object]]:
     ]
 
 
+@app.get("/api/knowledge/graph")
+def knowledge_graph_demo() -> dict[str, object]:
+    nodes = [
+        {
+            "id": "contoso-logistics",
+            "label": "Contoso Logistics",
+            "type": "vendor",
+            "vertical": "finance",
+            "risk": "elevated",
+        },
+        {
+            "id": "sparkling-water-12pk",
+            "label": "Sparkling Water 12pk",
+            "type": "sku",
+            "vertical": "retail",
+            "risk": "medium",
+        },
+        {
+            "id": "billing-api",
+            "label": "billing-api",
+            "type": "service",
+            "vertical": "saas",
+            "risk": "high",
+        },
+        {"id": "pol-price-04", "label": "POL-PRICE-04", "type": "policy", "vertical": "retail", "risk": "control"},
+        {"id": "pol-ap-12", "label": "POL-AP-12", "type": "policy", "vertical": "finance", "risk": "control"},
+    ]
+    edges = [
+        {
+            "source": "contoso-logistics",
+            "relation": "requires_policy_review",
+            "target": "pol-ap-12",
+            "evidence": "Amount mismatches above threshold.",
+        },
+        {
+            "source": "sparkling-water-12pk",
+            "relation": "constrained_by",
+            "target": "pol-price-04",
+            "evidence": "Price band changes must remain within baseline limits.",
+        },
+        {
+            "source": "billing-api",
+            "relation": "shares_failure_pattern",
+            "target": "contoso-logistics",
+            "evidence": "Invoice preview and payment retry incidents affect AP exception flow.",
+        },
+    ]
+    return {"nodes": nodes, "edges": edges, "generated_from": "seeded_memory"}
+
+
 @app.post("/api/ucp/checkout-proposals", response_model=UCPCheckoutProposalResponse, status_code=202)
 async def create_ucp_checkout_proposal(payload: UCPCheckoutProposalRequest) -> UCPCheckoutProposalResponse:
     proposal = propose_checkout(payload.model_dump(exclude_none=True))

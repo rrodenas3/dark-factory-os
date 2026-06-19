@@ -70,6 +70,32 @@ export type EvalDemo = {
 	}>;
 };
 
+export type MemoryDemoItem = {
+	namespace: string;
+	entity_key: string;
+	memory_type: string;
+	trust: number;
+	decay_score: number;
+	summary: string;
+};
+
+export type KnowledgeGraph = {
+	generated_from: string;
+	nodes: Array<{
+		id: string;
+		label: string;
+		type: string;
+		vertical: string;
+		risk: string;
+	}>;
+	edges: Array<{
+		source: string;
+		relation: string;
+		target: string;
+		evidence: string;
+	}>;
+};
+
 export async function fetchRuns(): Promise<ApiRun[]> {
 	return fetchJson<ApiRun[]>("/api/runs");
 }
@@ -92,6 +118,14 @@ export async function fetchCostSummary(): Promise<CostSummary> {
 
 export async function fetchEvalDemo(): Promise<EvalDemo> {
 	return fetchJson<EvalDemo>("/api/evals/demo");
+}
+
+export async function fetchMemoryDemo(): Promise<MemoryDemoItem[]> {
+	return fetchJson<MemoryDemoItem[]>("/api/memory/demo");
+}
+
+export async function fetchKnowledgeGraph(): Promise<KnowledgeGraph> {
+	return fetchJson<KnowledgeGraph>("/api/knowledge/graph");
 }
 
 export function formatStatus(status: string): string {
