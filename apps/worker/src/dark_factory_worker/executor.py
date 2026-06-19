@@ -7,6 +7,7 @@ from typing import Any, cast
 from uuid import UUID
 
 from dark_factory_governance.risk_registry import load_risk_registry
+from dark_factory_memory import PostgresMemoryStore, build_run_outcome_memory
 from dark_factory_orchestration import RunGraph, RunState, build_graph
 from dark_factory_persistence import ApprovalRepository, RunRepository
 from dark_factory_persistence.pool import close_pool, get_pool
@@ -71,6 +72,7 @@ class RunExecutor:
         state = cast(RunState, state_from_run(run))
         final = await asyncio.to_thread(self._graph.resume, state, decision)
         await persist_run_result(self._runs, self._approvals, run, dict(final))
+        await self._write_run_outcome_memory(dict(final))
         return final
 
     async def _execute_run(self, run: Any) -> None:
@@ -79,9 +81,21 @@ class RunExecutor:
             state = cast(RunState, state_from_run(run, initial=True))
             final = await asyncio.to_thread(self._graph.invoke, state)
             await persist_run_result(self._runs, self._approvals, run, dict(final))
+            await self._write_run_outcome_memory(dict(final))
         except Exception:
             await self._runs.update_run_status(run.id, status="failed")
             raise
+
+    async def _write_run_outcome_memory(self, state: dict[str, Any]) -> None:
+        item = build_run_outcome_memory(state)
+        if item is None:
+            return
+        store = PostgresMemoryStore(self._runs.pool)
+        try:
+            await store.upsert(item)
+        except ValueError as exc:
+            if "append-only" not in str(exc):
+                raise
 
 
 async def worker_loop(poll_seconds: float = 2.0) -> None:

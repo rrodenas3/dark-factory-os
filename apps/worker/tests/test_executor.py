@@ -5,12 +5,13 @@ from pathlib import Path
 
 import asyncpg
 import pytest
+from dark_factory_memory import PostgresMemoryStore
 from dark_factory_orchestration import build_graph
 from dark_factory_persistence import ApprovalRepository, RunRepository
 from dark_factory_persistence.migrate import run_migrations
 from dark_factory_worker.executor import RunExecutor
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 MIGRATIONS_DIR = ROOT / "infra" / "migrations"
 
 
@@ -18,7 +19,7 @@ def _database_url() -> str | None:
     return os.environ.get("DATABASE_URL")
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture
 async def pool() -> asyncpg.Pool:
     url = _database_url()
     if not url:
@@ -38,6 +39,7 @@ def executor(pool: asyncpg.Pool) -> RunExecutor:
 @pytest.mark.asyncio
 async def test_executor_completes_read_only_run(executor: RunExecutor, pool: asyncpg.Pool) -> None:
     runs = RunRepository(pool)
+    await pool.execute("DELETE FROM memory_items WHERE namespace = 'finance.run_outcomes'")
     created = await runs.create_run(
         workflow_key="spend-anomaly-detection",
         vertical="finance",
@@ -52,11 +54,15 @@ async def test_executor_completes_read_only_run(executor: RunExecutor, pool: asy
     assert finished.checkpoint_json is not None
     assert finished.checkpoint_json.get("tool_trace")
 
+    memories = await PostgresMemoryStore(pool).all(namespace="finance.run_outcomes")
+    assert any(item.content["run_id"] == str(created.id) for item in memories)
+
 
 @pytest.mark.asyncio
 async def test_executor_pauses_for_approval_and_resumes(executor: RunExecutor, pool: asyncpg.Pool) -> None:
     runs = RunRepository(pool)
     approvals = ApprovalRepository(pool)
+    await pool.execute("DELETE FROM memory_items WHERE namespace = 'retail.run_outcomes'")
     created = await runs.create_run(
         workflow_key="promo-rebalance",
         vertical="retail",
@@ -83,6 +89,10 @@ async def test_executor_pauses_for_approval_and_resumes(executor: RunExecutor, p
         if step.get("tool_name") == "pricing.set_price_band" and step.get("executed") is True
     ]
     assert len(executed) == 1
+
+    memories = await PostgresMemoryStore(pool).all(namespace="retail.run_outcomes")
+    statuses = {item.content["status"] for item in memories if item.content["run_id"] == str(created.id)}
+    assert {"approval_required", "completed"} <= statuses
 
 
 @pytest.mark.asyncio
