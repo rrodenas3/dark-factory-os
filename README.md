@@ -109,7 +109,7 @@ Unknown tools are **denied by default** (`unknown_tool: deny`). This is the cano
 
 The memory layer (`packages/py/memory`) implements SSGM-inspired governance:
 
-- **Write gate**: semantic memory requires `source_trust ≥ 0.6`; episodic memory is append-only
+- **Write gate**: semantic memory requires `source_trust >= 0.7`; episodic memory is append-only
 - **Read gate**: filters by `access_scope`, `min_trust`, `memory_type`, and decay-weighted similarity
 - **Decay scoring**: `score = similarity × exp(-λ × age_hours)` — stale context automatically ranks lower
 - **Production path**: swap `InMemoryStore` for the `memory_items` Postgres table with pgvector
@@ -193,7 +193,7 @@ dark-factory-os/
     evals/                  CLEAR harness — trajectory F1, grounding, approval precision, cost
   skills/
     finance/ retail/ saas/  Six SKILL.md files, validated at CI time
-  evals/datasets/           30 golden cases across three verticals
+  evals/datasets/           20 golden cases across three verticals
   infra/migrations/         Full Postgres schema (pgvector, audit_events, cost_ledger, kg_edges)
   docs/
     architecture/           System and agent architecture docs
