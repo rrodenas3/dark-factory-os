@@ -81,7 +81,11 @@ const fallbackImprovements: SkillImprovementReport = {
 				"Add an evidence checklist before the approval gate.",
 				"Document required pricing policy citations.",
 			],
-			eval_report_attachment: { task_success_rate: 0.91, grounding_score: 0.88, trajectory_f1: 0.72 },
+			eval_report_attachment: {
+				task_success_rate: 0.91,
+				grounding_score: 0.88,
+				trajectory_f1: 0.72,
+			},
 			eval_plan: ["Replay trace corpus.", "Run retail goldens."],
 			status: "ready_for_review",
 			created_at: new Date("2026-06-19T00:00:00Z").toISOString(),
@@ -90,10 +94,18 @@ const fallbackImprovements: SkillImprovementReport = {
 			id: "sip-saas-demo",
 			skill_name: "incident-triage",
 			trigger: "2 failed runs for incident-triage",
-			proposed_change: "Add fallback policy search and verifier checks for missing citations.",
+			proposed_change:
+				"Add fallback policy search and verifier checks for missing citations.",
 			evidence: ["Status counts: failed=2"],
-			diff_summary: ["Add recovery criteria.", "Add a golden eval for missing policy citations."],
-			eval_report_attachment: { task_success_rate: 0.42, grounding_score: 0.35, trajectory_f1: 0.51 },
+			diff_summary: [
+				"Add recovery criteria.",
+				"Add a golden eval for missing policy citations.",
+			],
+			eval_report_attachment: {
+				task_success_rate: 0.42,
+				grounding_score: 0.35,
+				trajectory_f1: 0.51,
+			},
 			eval_plan: ["Replay trace corpus.", "Run SaaS goldens."],
 			status: "rejected",
 			created_at: new Date("2026-06-19T00:00:00Z").toISOString(),
@@ -107,7 +119,10 @@ export default async function EvalsPage() {
 	let improvements = fallbackImprovements;
 
 	try {
-		[report, improvements] = await Promise.all([fetchEvalDemo(), fetchSkillImprovements()]);
+		[report, improvements] = await Promise.all([
+			fetchEvalDemo(),
+			fetchSkillImprovements(),
+		]);
 		live = true;
 	} catch {
 		live = false;

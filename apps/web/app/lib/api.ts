@@ -137,7 +137,13 @@ export type SkillImprovementProposal = {
 	diff_summary: string[];
 	eval_report_attachment: Record<string, number | string | boolean> | null;
 	eval_plan: string[];
-	status: "draft" | "evaluating" | "ready_for_review" | "rejected" | "accepted" | string;
+	status:
+		| "draft"
+		| "evaluating"
+		| "ready_for_review"
+		| "rejected"
+		| "accepted"
+		| string;
 	created_at: string;
 };
 
