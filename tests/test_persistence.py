@@ -6,7 +6,7 @@ from uuid import UUID
 
 import asyncpg
 import pytest
-from dark_factory_persistence import AuditRepository, RunRepository
+from dark_factory_persistence import AuditRepository, CostRepository, RunRepository
 from dark_factory_persistence.migrate import run_migrations
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -135,3 +135,34 @@ async def test_audit_repository_records_and_filters_events(pool: asyncpg.Pool) -
     events = await audit.list_events(run_id=run.id, event_type="run.created")
     assert any(event.id == created.id for event in events)
     assert events[0].payload_json["workflow_key"] == "promo-rebalance"
+
+
+@pytest.mark.asyncio
+async def test_cost_repository_summarizes_steps(pool: asyncpg.Pool) -> None:
+    runs = RunRepository(pool)
+    run = await runs.create_run(workflow_key="spend-anomaly-detection", vertical="finance")
+    await runs.append_step(
+        run_id=run.id,
+        step_type="act",
+        status="ok",
+        tool_name="policy.search",
+        risk_tier="read_only",
+        cost_usd=0.002,
+        latency_ms=25,
+    )
+    await runs.append_step(
+        run_id=run.id,
+        step_type="act",
+        status="ok",
+        tool_name="analytics.get_campaign_metrics",
+        risk_tier="read_only",
+        cost_usd=0.003,
+        latency_ms=50,
+    )
+
+    summary = await CostRepository(pool).summary()
+
+    assert summary["by_category"]["retrieval"] >= 0.002
+    assert summary["by_category"]["tool_compute"] >= 0.003
+    assert "finance" in summary["by_vertical"]
+    assert summary["clear"]["latency"]["p95_seconds"] >= 0.025
