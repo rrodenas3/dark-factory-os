@@ -117,6 +117,15 @@ def test_memory_demo_returns_seeded_items() -> None:
     assert "finance.vendor_risk" in namespaces
 
 
+def test_knowledge_graph_demo_returns_entities_and_edges() -> None:
+    response = TestClient(app).get("/api/knowledge/graph")
+    assert response.status_code == 200
+    graph = response.json()
+    assert graph["generated_from"] == "seeded_memory"
+    assert {node["id"] for node in graph["nodes"]} >= {"contoso-logistics", "sparkling-water-12pk", "billing-api"}
+    assert any(edge["relation"] == "constrained_by" for edge in graph["edges"])
+
+
 def test_ucp_checkout_proposal_creates_pending_approval() -> None:
     before = len(DEMO_APPROVALS)
     response = TestClient(app).post(
