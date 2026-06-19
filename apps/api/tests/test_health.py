@@ -182,6 +182,20 @@ def test_tools_catalog_exposes_mcp_registry() -> None:
     assert endpoints["pricing.set_price_band"]["approver_role"] == "commercial-manager"
 
 
+def test_user_context_exposes_personalized_workbench() -> None:
+    response = TestClient(app).get("/api/me")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["role"] == "admin"
+    assert {"finance", "retail", "saas"} == set(body["verticals"])
+    assert {"runs:write", "approvals:write", "memory:read"} <= set(body["permissions"])
+    assert body["active_agent"]["name"] == "Enterprise Operations Supervisor"
+    assert body["active_agent"]["risk_tier"] == "high"
+    assert {item["vertical"] for item in body["workbench"]} == {"finance", "retail", "saas"}
+    assert body["workbench"][0]["priority"] == "critical"
+
+
 def test_audit_events_exposes_demo_ledger() -> None:
     response = TestClient(app).get("/api/audit/events")
 

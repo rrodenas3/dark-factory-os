@@ -18,6 +18,7 @@ from fastapi.responses import JSONResponse
 from dark_factory_api import persisted
 from dark_factory_api.evals import router as evals_router
 from dark_factory_api.schemas import (
+    AgentIdentity,
     ApprovalDecisionRequest,
     CreateRunRequest,
     HealthResponse,
@@ -26,6 +27,8 @@ from dark_factory_api.schemas import (
     RunDetail,
     UCPCheckoutProposalRequest,
     UCPCheckoutProposalResponse,
+    UserContext,
+    WorkbenchFocus,
     api_status,
 )
 
@@ -120,6 +123,57 @@ DEMO_AUDIT_EVENTS: list[dict[str, object]] = [
     },
 ]
 
+DEMO_USER_CONTEXT = UserContext(
+    id="user-demo-ai-lead",
+    email="ai-lead@darkfactory.local",
+    role="admin",
+    verticals=["finance", "retail", "saas"],
+    permissions=[
+        "runs:write",
+        "approvals:write",
+        "memory:read",
+        "skills:review",
+        "audit:read",
+        "costs:read",
+    ],
+    active_agent=AgentIdentity(
+        id="agent-supervisor-001",
+        name="Enterprise Operations Supervisor",
+        risk_tier="high",
+        budget_daily_usd=10.0,
+        status="active",
+    ),
+    workbench=[
+        WorkbenchFocus(
+            id="finance-ap-exception",
+            label="AP exception control",
+            vertical="finance",
+            priority="critical",
+            signal="Amount mismatch over policy threshold with pending ARP.",
+            next_action="Review evidence bundle and decide payment gate.",
+            href="/approvals",
+        ),
+        WorkbenchFocus(
+            id="retail-margin-rebalance",
+            label="Promo margin rebalance",
+            vertical="retail",
+            priority="high",
+            signal="Campaign margin drift plus stock availability supports price-band proposal.",
+            next_action="Inspect WebMCP/UCP proposal before commercial approval.",
+            href="/retail/promo-confirm",
+        ),
+        WorkbenchFocus(
+            id="saas-incident-followup",
+            label="Incident follow-up loop",
+            vertical="saas",
+            priority="medium",
+            signal="Billing API spike needs correlation with churn-risk accounts.",
+            next_action="Open trace timeline and verify remediation steps.",
+            href="/traces",
+        ),
+    ],
+)
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -171,6 +225,11 @@ async def list_runs() -> list[RunDetail]:
 @app.get("/api/demo/runs")
 def list_demo_runs() -> list[dict[str, object]]:
     return DEMO_RUNS
+
+
+@app.get("/api/me", response_model=UserContext)
+def get_user_context() -> UserContext:
+    return DEMO_USER_CONTEXT
 
 
 @app.post("/api/runs", response_model=Run)

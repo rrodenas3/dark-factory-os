@@ -34,6 +34,34 @@ class RunDetail(Run):
     error: str | None = None
 
 
+class AgentIdentity(BaseModel):
+    id: str
+    name: str
+    risk_tier: Literal["low", "medium", "high", "critical"]
+    budget_daily_usd: float
+    status: str = "active"
+
+
+class WorkbenchFocus(BaseModel):
+    id: str
+    label: str
+    vertical: Literal["finance", "retail", "saas"]
+    priority: Literal["low", "medium", "high", "critical"]
+    signal: str
+    next_action: str
+    href: str
+
+
+class UserContext(BaseModel):
+    id: str
+    email: str
+    role: Literal["admin", "operator", "analyst", "viewer"]
+    verticals: list[Literal["finance", "retail", "saas"]]
+    permissions: list[str]
+    active_agent: AgentIdentity
+    workbench: list[WorkbenchFocus]
+
+
 class CreateRunRequest(BaseModel):
     briefing_json: dict[str, object] = Field(default_factory=dict)
     vertical: Literal["finance", "retail", "saas"]
