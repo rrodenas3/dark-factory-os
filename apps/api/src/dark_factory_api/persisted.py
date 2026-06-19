@@ -8,7 +8,14 @@ from uuid import UUID
 import asyncpg
 from dark_factory_memory import InMemoryStore, MemoryItem, MemoryQuery, PostgresMemoryStore, build_run_outcome_memory
 from dark_factory_orchestration import RunGraph, RunState, build_graph
-from dark_factory_persistence import ApprovalRecord, ApprovalRepository, RunRecord, RunRepository
+from dark_factory_persistence import (
+    ApprovalRecord,
+    ApprovalRepository,
+    AuditEventRecord,
+    AuditRepository,
+    RunRecord,
+    RunRepository,
+)
 from dark_factory_persistence.pool import close_pool, get_pool
 from dark_factory_persistence.run_ops import persist_run_result, state_from_run
 from fastapi import HTTPException
@@ -58,6 +65,17 @@ async def create_run_persisted(payload: CreateRunRequest) -> Run:
         vertical=payload.vertical,
         briefing_json=dict(payload.briefing_json),
         status="pending",
+    )
+    await AuditRepository(_require_pool()).record(
+        actor_type="user",
+        event_type="run.created",
+        object_type="run",
+        object_id=record.id,
+        payload_json={
+            "workflow_key": record.workflow_key,
+            "vertical": record.vertical,
+            "briefing_json": record.briefing_json,
+        },
     )
     return _run_from_record(record)
 
@@ -133,6 +151,18 @@ async def create_ucp_checkout_proposal_persisted(
             "policy_citations": [{"policy_id": "POL-PRICE-04", "clause_id": "1.0", "compliance_status": "pending"}],
         },
     )
+    await AuditRepository(pool).record(
+        actor_type="agent",
+        event_type="approval.requested",
+        object_type="approval",
+        object_id=approval.id,
+        payload_json={
+            "run_id": str(run.id),
+            "action_type": approval.action_type,
+            "approver_role": approval.approver_role,
+            "protocol": "ucp-simulator",
+        },
+    )
     return UCPCheckoutProposalResponse(
         approval_id=str(approval.id),
         run_id=str(run.id),
@@ -188,6 +218,18 @@ async def decide_approval_persisted(approval_id: UUID, payload: ApprovalDecision
         payload.reason,
         approval_ids=[approval.id],
     )
+    await AuditRepository(pool).record(
+        actor_type="user",
+        event_type="approval.decided",
+        object_type="approval",
+        object_id=approval.id,
+        payload_json={
+            "run_id": str(run.id),
+            "decision": payload.decision,
+            "reason": payload.reason,
+            "run_status": api_status(final.get("status", "failed")),
+        },
+    )
     return {
         "status": "accepted",
         "decision": payload.decision,
@@ -212,7 +254,27 @@ async def resume_run_persisted(run_id: UUID, payload: ApprovalDecisionRequest) -
         payload.decision,
         payload.reason,
     )
+    await AuditRepository(pool).record(
+        actor_type="user",
+        event_type="run.resumed",
+        object_type="run",
+        object_id=record.id,
+        payload_json={
+            "decision": payload.decision,
+            "reason": payload.reason,
+            "run_status": api_status(final.get("status", "failed")),
+        },
+    )
     return {"status": "accepted", "run_status": api_status(final.get("status", "failed"))}
+
+
+async def list_audit_events_persisted(
+    *,
+    run_id: UUID | None = None,
+    event_type: str | None = None,
+) -> list[dict[str, object]]:
+    events = await AuditRepository(_require_pool()).list_events(run_id=run_id, event_type=event_type)
+    return [_audit_event_to_api(event) for event in events]
 
 
 async def get_trace_persisted(run_id: UUID) -> dict[str, object]:
@@ -343,6 +405,19 @@ def _run_from_record(record: RunRecord) -> Run:
         total_cost_usd=record.total_cost_usd,
         step_count=record.step_count,
     )
+
+
+def _audit_event_to_api(event: AuditEventRecord) -> dict[str, object]:
+    return {
+        "id": str(event.id),
+        "actor_type": event.actor_type,
+        "actor_id": str(event.actor_id) if event.actor_id else None,
+        "event_type": event.event_type,
+        "object_type": event.object_type,
+        "object_id": str(event.object_id) if event.object_id else None,
+        "payload_json": event.payload_json,
+        "created_at": event.created_at.isoformat() if event.created_at else None,
+    }
 
 
 def _detail_from_record(record: RunRecord) -> RunDetail:

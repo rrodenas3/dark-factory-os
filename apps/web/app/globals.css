@@ -397,6 +397,14 @@ a {
 	color: var(--red);
 }
 
+.audit-table td:first-child {
+	min-width: 170px;
+}
+
+.audit-table td:nth-child(5) {
+	min-width: 260px;
+}
+
 @media (max-width: 900px) {
 	.knowledge-layout,
 	.protocol-layout,
