@@ -45,6 +45,44 @@ export type ApiApproval = {
 	status: string;
 	summary: string;
 	evidence: string[];
+	arp_json?: ActionReadinessPack;
+};
+
+export type ActionReadinessPack = {
+	id: string;
+	run_id: string;
+	briefing_id: string;
+	proposed_action: {
+		type: string;
+		description: string;
+		target_system: string;
+		payload_preview: Record<string, unknown>;
+	};
+	evidence: Array<{
+		source: string;
+		citation: string;
+		relevance_score: number;
+		excerpt: string;
+	}>;
+	risk_assessment: {
+		tier: string;
+		reversible: boolean;
+		blast_radius: string;
+		confidence: number;
+	};
+	policy_citations: Array<{
+		policy_id: string;
+		clause_id: string;
+		compliance_status: string;
+	}>;
+	estimated_impact: {
+		financial_usd: number;
+		systems_affected: string[];
+		users_affected: number;
+	};
+	alternatives_considered: string[];
+	expires_at: string;
+	status: string;
 };
 
 export type ApiTrace = {

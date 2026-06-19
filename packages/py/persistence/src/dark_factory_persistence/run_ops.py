@@ -3,6 +3,8 @@ from __future__ import annotations
 from typing import Any, cast
 from uuid import UUID
 
+from dark_factory_governance import build_action_readiness_pack
+
 from dark_factory_persistence import ApprovalRepository, RunRecord, RunRepository
 
 
@@ -58,6 +60,12 @@ async def persist_run_result(
                     "approval_role": state.get("approval_role"),
                 },
                 approver_role=str(state.get("approval_role") or "operator"),
+                arp_json=build_action_readiness_pack(
+                    run_id=str(run.id),
+                    action_type=str(state["pending_tool"]),
+                    approver_role=str(state.get("approval_role") or "operator"),
+                    state=state,
+                ),
             )
 
 
