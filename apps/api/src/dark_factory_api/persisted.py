@@ -6,7 +6,7 @@ from typing import Any, cast
 from uuid import UUID
 
 import asyncpg
-from dark_factory_memory import InMemoryStore, MemoryItem, MemoryQuery, PostgresMemoryStore
+from dark_factory_memory import InMemoryStore, MemoryItem, MemoryQuery, PostgresMemoryStore, build_run_outcome_memory
 from dark_factory_orchestration import RunGraph, RunState, build_graph
 from dark_factory_persistence import ApprovalRecord, ApprovalRepository, RunRecord, RunRepository
 from dark_factory_persistence.pool import close_pool, get_pool
@@ -245,6 +245,18 @@ async def seed_demo_memory_persisted() -> None:
         await store.upsert(item, validate=False)
 
 
+async def write_run_outcome_memory(state: dict[str, Any]) -> None:
+    item = build_run_outcome_memory(state)
+    if item is None:
+        return
+    store = PostgresMemoryStore(_require_pool())
+    try:
+        await store.upsert(item)
+    except ValueError as exc:
+        if "append-only" not in str(exc):
+            raise
+
+
 async def _resume_run_with_decision(
     runs: RunRepository,
     approvals: ApprovalRepository,
@@ -276,6 +288,7 @@ async def _resume_run_with_decision(
     }
     final = {**final, "outcome": outcome}
     await persist_run_result(runs, approvals, run, dict(final))
+    await write_run_outcome_memory(dict(final))
     return final
 
 

@@ -5,6 +5,7 @@ description = "Dark Factory OS worker runtime"
 requires-python = ">=3.12"
 dependencies = [
   "dark-factory-governance",
+  "dark-factory-memory",
   "dark-factory-orchestration",
   "dark-factory-persistence",
 ]
@@ -14,5 +15,6 @@ package = true
 
 [tool.uv.sources]
 dark-factory-governance = { workspace = true }
+dark-factory-memory = { workspace = true }
 dark-factory-orchestration = { workspace = true }
 dark-factory-persistence = { workspace = true }

@@ -23,6 +23,10 @@ class RunRepository:
     def __init__(self, pool: asyncpg.Pool) -> None:
         self._pool = pool
 
+    @property
+    def pool(self) -> asyncpg.Pool:
+        return self._pool
+
     async def create_run(
         self,
         *,
