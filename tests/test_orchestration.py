@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 from dark_factory_governance.risk_registry import load_risk_registry
 from dark_factory_orchestration import RunGraph, RunState, build_graph
+from langgraph.graph.state import CompiledStateGraph
 
 ROOT = Path(__file__).resolve().parents[1]
 REGISTRY_PATH = ROOT / "packages" / "py" / "governance" / "risk_registry.yaml"
@@ -38,6 +39,10 @@ def _initial(run_id: str, vertical: str, skill_name: str) -> RunState:
 def test_finance_ap_run_reaches_terminal_state(graph: RunGraph) -> None:
     final = graph.invoke(_initial("run-fin-001", "finance", "ap-exception-resolution"))
     assert final["status"] in ("completed", "approval_required", "failed")
+
+
+def test_run_graph_uses_compiled_langgraph_runtime(graph: RunGraph) -> None:
+    assert isinstance(graph.compiled_graph, CompiledStateGraph)
 
 
 def test_finance_ap_run_executes_tools(graph: RunGraph) -> None:
