@@ -6,6 +6,7 @@ requires-python = ">=3.12"
 dependencies = [
   "pydantic>=2.10.4",
   "dark-factory-governance",
+  "dark-factory-skills-registry",
   "dark-factory-tool-adapters",
   "opentelemetry-api>=1.24.0",
   "opentelemetry-sdk>=1.24.0",

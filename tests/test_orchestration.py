@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 from dark_factory_governance.risk_registry import load_risk_registry
 from dark_factory_orchestration import RunGraph, RunState, build_graph
+from dark_factory_orchestration.skill_planner import resolve_skill_plan
 from langgraph.graph.state import CompiledStateGraph
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -50,6 +51,52 @@ def test_finance_ap_run_executes_tools(graph: RunGraph) -> None:
     assert len(final["tool_trace"]) >= 1
 
 
+def test_planner_resolves_tool_plans_from_skill_manifests() -> None:
+    registry = load_risk_registry(REGISTRY_PATH)
+
+    expected_plans = {
+        "ap-exception-resolution": ["erp.get_invoice", "erp.get_purchase_order", "policy.search"],
+        "spend-anomaly-detection": ["policy.search", "memory.search"],
+        "promo-rebalance": [
+            "analytics.get_campaign_metrics",
+            "policy.search",
+            "memory.search",
+            "pricing.set_price_band",
+        ],
+        "replenishment-control": [
+            "analytics.get_campaign_metrics",
+            "policy.search",
+            "memory.search",
+            "inventory.reorder",
+        ],
+        "incident-triage": [
+            "analytics.get_incident_metrics",
+            "telemetry.get_deployments",
+            "policy.search",
+            "memory.search",
+        ],
+        "churn-risk-investigation": [
+            "analytics.get_incident_metrics",
+            "telemetry.get_deployments",
+            "policy.search",
+            "memory.search",
+        ],
+    }
+
+    for skill_name, expected_plan in expected_plans.items():
+        assert resolve_skill_plan(skill_name, registry) == expected_plan
+
+
+def test_planner_keeps_approval_request_as_control_plane_signal() -> None:
+    registry = load_risk_registry(REGISTRY_PATH)
+
+    plan = resolve_skill_plan("promo-rebalance", registry)
+
+    assert "approvals.request" not in plan
+    assert plan.index("policy.search") < plan.index("pricing.set_price_band")
+    assert plan.index("memory.search") < plan.index("pricing.set_price_band")
+
+
 def test_finance_ap_cites_policy(graph: RunGraph) -> None:
     final = graph.invoke(_initial("run-fin-003", "finance", "ap-exception-resolution"))
     has_citations = bool(final.get("policy_citations")) or final.get("outcome", {}) is not None
@@ -64,6 +111,31 @@ def test_retail_promo_run_completes(graph: RunGraph) -> None:
 def test_saas_incident_run_completes(graph: RunGraph) -> None:
     final = graph.invoke(_initial("run-saas-001", "saas", "incident-triage"))
     assert final["status"] in ("completed", "approval_required", "failed")
+
+
+def test_skill_manifest_unknown_tool_fails_at_plan_time(tmp_path: Path) -> None:
+    skill_dir = tmp_path / "finance" / "bad-skill"
+    skill_dir.mkdir(parents=True)
+    (skill_dir / "SKILL.md").write_text(
+        """---
+name: bad-skill
+description: Invalid runtime plan.
+version: 0.1.0
+owner: test
+risk_tier: low
+required_tools:
+  - erp.get_invoice
+  - not.real_tool
+---
+# Goal
+Prove unknown tools fail closed.
+""",
+        encoding="utf-8",
+    )
+    registry = load_risk_registry(REGISTRY_PATH)
+
+    with pytest.raises(KeyError, match="not.real_tool"):
+        resolve_skill_plan("bad-skill", registry, skills_root=tmp_path)
 
 
 def test_approval_required_when_financial_tool_in_plan(graph: RunGraph) -> None:

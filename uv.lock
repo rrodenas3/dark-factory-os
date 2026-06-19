@@ -352,6 +352,7 @@ version = "0.1.0"
 source = { editable = "packages/py/orchestration" }
 dependencies = [
     { name = "dark-factory-governance" },
+    { name = "dark-factory-skills-registry" },
     { name = "dark-factory-tool-adapters" },
     { name = "langgraph" },
     { name = "opentelemetry-api" },
@@ -362,6 +363,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "dark-factory-governance", editable = "packages/py/governance" },
+    { name = "dark-factory-skills-registry", editable = "packages/py/skills_registry" },
     { name = "dark-factory-tool-adapters", editable = "packages/py/tool_adapters" },
     { name = "langgraph", specifier = ">=0.2.70" },
     { name = "opentelemetry-api", specifier = ">=1.24.0" },
