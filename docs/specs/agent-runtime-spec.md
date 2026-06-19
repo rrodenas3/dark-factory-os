@@ -44,4 +44,4 @@ The supervisor state contains:
 
 ## Checkpointing
 
-Use Postgres-backed LangGraph checkpoints with `thread_id = run_id`. Use Temporal only for long-running workflows that need durable timers, retries, or external wait states.
+Use Postgres-backed LangGraph checkpoints with `thread_id = run_id` in Docker and production (`DFOS_LANGGRAPH_CHECKPOINTS=postgres`). Unit tests and local isolated graph construction default to `memory` mode for deterministic execution. Use Temporal only for long-running workflows that need durable timers, retries, or external wait states.
