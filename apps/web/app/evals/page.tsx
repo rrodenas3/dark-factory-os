@@ -1,6 +1,12 @@
 import { CLEARDashboard } from "../components/clear-dashboard";
 import { Nav } from "../components/nav";
-import { type EvalDemo, fetchEvalDemo } from "../lib/api";
+import { SkillImprovementBoard } from "../components/skill-improvement-board";
+import {
+	type EvalDemo,
+	type SkillImprovementReport,
+	fetchEvalDemo,
+	fetchSkillImprovements,
+} from "../lib/api";
 
 const fallbackReport: EvalDemo = {
 	status: "completed",
@@ -57,12 +63,51 @@ const fallbackReport: EvalDemo = {
 	],
 };
 
+const fallbackImprovements: SkillImprovementReport = {
+	status: "completed",
+	source: "demo-data",
+	generated_at: new Date("2026-06-19T00:00:00Z").toISOString(),
+	trace_count: 4,
+	proposal_count: 2,
+	proposals: [
+		{
+			id: "sip-retail-demo",
+			skill_name: "promo-rebalance",
+			trigger: "2 approval_required runs for promo-rebalance",
+			proposed_change:
+				"Gather stronger evidence before proposing pricing.set_price_band and add a pre-approval verification step.",
+			evidence: ["Trace corpus size: 2"],
+			diff_summary: [
+				"Add an evidence checklist before the approval gate.",
+				"Document required pricing policy citations.",
+			],
+			eval_report_attachment: { task_success_rate: 0.91, grounding_score: 0.88, trajectory_f1: 0.72 },
+			eval_plan: ["Replay trace corpus.", "Run retail goldens."],
+			status: "ready_for_review",
+			created_at: new Date("2026-06-19T00:00:00Z").toISOString(),
+		},
+		{
+			id: "sip-saas-demo",
+			skill_name: "incident-triage",
+			trigger: "2 failed runs for incident-triage",
+			proposed_change: "Add fallback policy search and verifier checks for missing citations.",
+			evidence: ["Status counts: failed=2"],
+			diff_summary: ["Add recovery criteria.", "Add a golden eval for missing policy citations."],
+			eval_report_attachment: { task_success_rate: 0.42, grounding_score: 0.35, trajectory_f1: 0.51 },
+			eval_plan: ["Replay trace corpus.", "Run SaaS goldens."],
+			status: "rejected",
+			created_at: new Date("2026-06-19T00:00:00Z").toISOString(),
+		},
+	],
+};
+
 export default async function EvalsPage() {
 	let live = false;
 	let report = fallbackReport;
+	let improvements = fallbackImprovements;
 
 	try {
-		report = await fetchEvalDemo();
+		[report, improvements] = await Promise.all([fetchEvalDemo(), fetchSkillImprovements()]);
 		live = true;
 	} catch {
 		live = false;
@@ -83,6 +128,7 @@ export default async function EvalsPage() {
 			</header>
 			<Nav />
 			<CLEARDashboard report={report} />
+			<SkillImprovementBoard report={improvements} />
 		</main>
 	);
 }

@@ -45,3 +45,17 @@ def test_concurrent_eval_run_returns_409() -> None:
 
     assert response.status_code == 409
     assert response.json()["detail"] == "Eval run already in progress"
+
+
+def test_skill_improvement_endpoint_exposes_proposals() -> None:
+    response = TestClient(app).get("/api/evals/skill-improvements")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "completed"
+    assert body["trace_count"] == 4
+    assert body["proposal_count"] == 2
+
+    proposals = {proposal["skill_name"]: proposal for proposal in body["proposals"]}
+    assert proposals["promo-rebalance"]["status"] == "ready_for_review"
+    assert proposals["incident-triage"]["status"] == "rejected"

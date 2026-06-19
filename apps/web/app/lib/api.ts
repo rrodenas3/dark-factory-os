@@ -128,6 +128,28 @@ export type EvalDemo = {
 	metrics: EvalMetric[];
 };
 
+export type SkillImprovementProposal = {
+	id: string;
+	skill_name: string;
+	trigger: string;
+	proposed_change: string;
+	evidence: string[];
+	diff_summary: string[];
+	eval_report_attachment: Record<string, number | string | boolean> | null;
+	eval_plan: string[];
+	status: "draft" | "evaluating" | "ready_for_review" | "rejected" | "accepted" | string;
+	created_at: string;
+};
+
+export type SkillImprovementReport = {
+	status: string;
+	source: string;
+	generated_at: string;
+	trace_count: number;
+	proposal_count: number;
+	proposals: SkillImprovementProposal[];
+};
+
 export type MemoryDemoItem = {
 	namespace: string;
 	entity_key: string;
@@ -203,6 +225,10 @@ export async function fetchCostSummary(): Promise<CostSummary> {
 
 export async function fetchEvalDemo(): Promise<EvalDemo> {
 	return fetchJson<EvalDemo>("/api/evals/demo");
+}
+
+export async function fetchSkillImprovements(): Promise<SkillImprovementReport> {
+	return fetchJson<SkillImprovementReport>("/api/evals/skill-improvements");
 }
 
 export async function fetchMemoryDemo(): Promise<MemoryDemoItem[]> {

@@ -5,6 +5,7 @@ from pathlib import Path
 from threading import Lock
 from typing import Any
 
+from dark_factory_evals.hill_climb import HillClimbConfig, load_trace_corpus, propose_skill_improvements
 from dark_factory_evals.runner import run_all_evals
 from fastapi import APIRouter, HTTPException
 
@@ -32,6 +33,21 @@ def _run_live_evals() -> dict[str, Any]:
         "generated_at": generated_at,
         "metrics": metrics,
         "totals": _totals(metrics),
+    }
+
+
+def _run_skill_improvement_scan() -> dict[str, Any]:
+    root = _find_repo_root(Path(__file__).resolve())
+    corpus_path = root / "evals" / "trace_corpus" / "skill_improvement_traces.jsonl"
+    traces = load_trace_corpus(corpus_path)
+    proposals = propose_skill_improvements(traces, config=HillClimbConfig(min_repeated_events=2))
+    return {
+        "status": "completed",
+        "source": "trace_corpus",
+        "generated_at": datetime.now(UTC).isoformat(),
+        "trace_count": len(traces),
+        "proposal_count": len(proposals),
+        "proposals": [proposal.model_dump(mode="json") for proposal in proposals],
     }
 
 
@@ -111,3 +127,8 @@ def run_eval_summary() -> dict[str, Any]:
         return _LATEST_SUMMARY
     finally:
         _RUN_LOCK.release()
+
+
+@router.get("/skill-improvements")
+def get_skill_improvement_proposals() -> dict[str, Any]:
+    return _run_skill_improvement_scan()
